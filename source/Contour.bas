@@ -1,7 +1,7 @@
 Attribute VB_Name = "Contour"
 '===============================================================================
 '   Макрос          : Contour
-'   Версия          : 2022.05.18
+'   Версия          : 2022.05.31
 '   Сайты           : https://vk.com/elvin_macro/Contour
 '                     https://github.com/elvin-nsk
 '   Автор           : elvin-nsk (me@elvin.nsk.ru)
@@ -9,7 +9,7 @@ Attribute VB_Name = "Contour"
 
 Option Explicit
 
-Public Const RELEASE As Boolean = False
+Public Const RELEASE As Boolean = True
 
 Public Const APP_NAME As String = "Contour"
 Public Const APP_URL As String = "https://vk.com/elvin_macro/" & APP_NAME
@@ -34,7 +34,12 @@ Sub Start()
         VBA.MsgBox "Выделите объекты", vbInformation
         GoTo Finally
     End If
-    ActiveDocument.Unit = cdrMillimeter
+    With ActiveLayer
+        If Not .Visible Or Not .Editable Then
+            VBA.MsgBox "Текущий слой закрыт", vbInformation
+            GoTo Finally
+        End If
+    End With
     
     Dim Cfg As Config
     Set Cfg = Config.Load
@@ -66,7 +71,8 @@ Private Sub Main( _
     Set RawShapes = CreateShapeRange
     
     If Cfg.OptionSourceWithinGroups Then
-        RawShapes.AddRange Shapes.Shapes.FindShapes
+        RawShapes.AddRange _
+            Shapes.Shapes.FindShapes(Query:="Not @Type = 'Group'")
     Else
         RawShapes.AddRange Shapes
     End If
@@ -94,16 +100,14 @@ Private Sub Main( _
     Dim Contour As Shape
     For Each Shape In ReadyShapes
         ContourAndAddToRange _
-            Shape, Contours, _
-            Cfg.Offset, Cfg.OptionResultAbove, Cfg.OptionMatchColor
+            Shape, Contours, Cfg.OptionMatchColor, Cfg
     Next Shape
     For Each Shape In InvalidShapes
         Set BaseShape = Common.TryMakeBaseShape(Shape)
         If Not BaseShape Is Nothing Then
             TempShapes.Add BaseShape
             ContourAndAddToRange _
-                BaseShape, Contours, _
-                Cfg.Offset, Cfg.OptionResultAbove, False
+                BaseShape, Contours, False, Cfg
         End If
     Next Shape
     
@@ -138,7 +142,7 @@ Private Sub Main( _
             Set AverageColor = _
                 lib_elvin.GetAverageColorFromShapesFill(Contours)
         End If
-        Set Shape = WeldShapes(Contours)
+        Set Shape = lib_elvin.WeldShapes(Contours)
         If AverageColor Is Nothing Then
             Shape.Fill.ApplyNoFill
         Else
@@ -169,18 +173,33 @@ End Sub
 Private Sub ContourAndAddToRange( _
                     ByVal Shape As Shape, _
                     ByVal ContoursRange As ShapeRange, _
-                    ByVal Offset As Double, _
-                    ByVal OrderAbove As Boolean, _
-                    ByVal AssignFill As Boolean _
+                    ByVal AssignFill As Boolean, _
+                    ByVal Cfg As Config _
                  )
-        
+                 
+        Dim TempShape As Shape
         Dim NewContour As Shape
-        Set NewContour = Common.Contour(Shape, Offset)
         
-        If OrderAbove Then
-            NewContour.OrderFrontOf Shape
+        'хак с LinkAsChildOf - вытаскиваем сорс для контура из групп
+        'чтобы заработало undo
+        If Cfg.OptionResultAsObjects Then
+            Set NewContour = Common.Contour(Shape, Cfg.Offset)
+            If Cfg.OptionResultAbove Then
+                NewContour.OrderFrontOf Shape
+            Else
+                NewContour.OrderBackOf Shape
+            End If
+        ElseIf Cfg.OptionSourceWithinGroups Then
+            If Not Shape.ParentGroup Is Nothing Then
+                Set TempShape = Shape.Duplicate
+                TempShape.TreeNode.LinkAsChildOf Shape.Layer.TreeNode
+                Set NewContour = Common.Contour(TempShape, Cfg.Offset)
+                TempShape.Delete
+            Else
+                Set NewContour = Common.Contour(Shape, Cfg.Offset)
+            End If
         Else
-            NewContour.OrderBackOf Shape
+            Set NewContour = Common.Contour(Shape, Cfg.Offset)
         End If
         
         If AssignFill Then
@@ -193,32 +212,25 @@ Private Sub ContourAndAddToRange( _
         
 End Sub
 
-Private Function WeldShapes(ByVal Shapes As ShapeRange) As Shape
-    Set WeldShapes = Shapes.FirstShape
-    WeldShapes.CreateSelection
-    Dim Shape1 As Shape
-    Dim Shape2 As Shape
-    Do Until Shapes.Count = 1
-        Set Shape1 = Shapes(1)
-        Set Shape2 = Shapes(2)
-        Shapes.Remove 1
-        Shapes.Remove 1
-        Set WeldShapes = Shape1.Weld(Shape2)
-        Shapes.Add WeldShapes
-    Loop
-End Function
-
 Private Sub NameAndOrderShape( _
                 ByVal Shape As Shape, _
                 ByVal SourceShapes As ShapeRange, _
                 ByVal Cfg As Config _
             )
-    If Cfg.OptionResultAbove Then
-        Shape.OrderFrontOf lib_elvin.GetTopOrderShape(SourceShapes)
-    Else
-        Shape.OrderBackOf lib_elvin.GetBottomOrderShape(SourceShapes)
-    End If
+    OrderShapeOrShapes Shape, SourceShapes, Cfg
     Shape.Name = Cfg.Name
+End Sub
+
+Private Sub OrderShapeOrShapes( _
+                ByVal ShapeOrShapes As Object, _
+                ByVal SourceShapes As ShapeRange, _
+                ByVal Cfg As Config _
+            )
+    If Cfg.OptionResultAbove Then
+        ShapeOrShapes.OrderFrontOf lib_elvin.GetTopOrderShape(SourceShapes)
+    Else
+        ShapeOrShapes.OrderBackOf lib_elvin.GetBottomOrderShape(SourceShapes)
+    End If
 End Sub
 
 Private Function ShowViewAndGetResult(ByVal Cfg As Config) As Boolean
@@ -309,4 +321,8 @@ End Sub
 
 Private Sub testZOrder()
     GetBottomOrderShape(ActiveSelectionRange).CreateSelection
+End Sub
+
+Private Sub testShapeParent()
+    Debug.Print ActiveShape.ParentGroup Is Nothing
 End Sub

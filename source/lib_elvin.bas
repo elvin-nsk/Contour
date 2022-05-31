@@ -45,7 +45,7 @@ End Type
 
 '-------------------------------------------------------------------------------
 ' Функции           : BoostStart, BoostFinish
-' Версия            : 2020.04.30
+' Версия            : 2022.05.31
 ' Авторы            : dizzy, elvin-nsk
 ' Назначение        : доработанные оптимизаторы от CtC
 ' Зависимости       : самодостаточные
@@ -59,17 +59,17 @@ End Type
 '
 '-------------------------------------------------------------------------------
 Public Sub BoostStart( _
-               Optional ByVal UnDo As String = "", _
+               Optional ByVal UndoGroupName As String = "", _
                Optional ByVal Optimize As Boolean = True _
            )
-    If Not UnDo = "" And Not ActiveDocument Is Nothing Then _
-        ActiveDocument.BeginCommandGroup UnDo
-    If Optimize Then Optimization = True
-    EventsEnabled = False
+    If Not UndoGroupName = "" And Not ActiveDocument Is Nothing Then _
+        ActiveDocument.BeginCommandGroup UndoGroupName
+    If Optimize And Not Optimization Then Optimization = True
+    If EventsEnabled Then EventsEnabled = False
     If Not ActiveDocument Is Nothing Then
         With ActiveDocument
             .SaveSettings
-            '.PreserveSelection = False
+            .PreserveSelection = False
             .Unit = cdrMillimeter
             .WorldScale = 1
             .ReferencePoint = cdrCenter
@@ -77,12 +77,12 @@ Public Sub BoostStart( _
     End If
 End Sub
 Public Sub BoostFinish(Optional ByVal EndUndoGroup As Boolean = True)
-    EventsEnabled = True
-    Optimization = False
+    If Not EventsEnabled Then EventsEnabled = True
+    If Optimization Then Optimization = False
     If Not ActiveDocument Is Nothing Then
         With ActiveDocument
             .RestoreSettings
-            '.PreserveSelection = True
+            .PreserveSelection = True
             If EndUndoGroup Then .EndCommandGroup
         End With
         ActiveWindow.Refresh
@@ -93,6 +93,150 @@ End Sub
 '===============================================================================
 ' функции манипуляций с объектами корела
 '===============================================================================
+
+'перекрашивает объект в чёрный или белый в серой шкале,
+'в зависимости от исходного цвета
+'ДОРАБОТАТЬ
+Public Function ContrastShape(ByVal Shape As Shape) As Shape
+    With Shape.Fill
+        Select Case .Type
+            Case cdrUniformFill
+                .UniformColor.ConvertToGray
+                If .UniformColor.Gray < 128 Then
+                    .UniformColor.GrayAssign 0
+                Else
+                    .UniformColor.GrayAssign 255
+                End If
+            Case cdrFountainFill
+                'todo
+        End Select
+    End With
+    With Shape.Outline
+        If Not .Type = cdrNoOutline Then
+            .Color.ConvertToGray
+            If .Color.Gray < 128 Then _
+                .Color.GrayAssign 0 Else .Color.GrayAssign 255
+        End If
+    End With
+    Set ContrastShape = Shape
+End Function
+
+'правильно копирует Shape или ShapeRange на другой слой
+Public Function CopyToLayer( _
+                    ByVal ShapeOrRange As Object, _
+                    ByVal Layer As Layer _
+                ) As Object
+
+    If Not TypeOf ShapeOrRange Is Shape And Not TypeOf ShapeOrRange Is ShapeRange Then
+        Err.Raise 13, Source:="CopyToLayer", _
+                  Description:="Type mismatch: ShapeOrRange должен быть Shape или ShapeRange"
+        Exit Function
+    End If
+    
+    Set CopyToLayer = ShapeOrRange.Duplicate
+    MoveToLayer CopyToLayer, Layer
+
+End Function
+
+'инструмент Boundary
+Public Function CreateBoundary(ByVal ShapeOrRange As Object) As Shape
+    On Error GoTo Catch
+    Dim tShape As Shape, tRange As ShapeRange
+    'просто объект не ест, надо конкретный тип
+    If TypeOf ShapeOrRange Is Shape Then
+        Set tShape = ShapeOrRange
+        Set CreateBoundary = tShape.CustomCommand("Boundary", "CreateBoundary")
+    ElseIf TypeOf ShapeOrRange Is ShapeRange Then
+        Set tRange = ShapeOrRange
+        Set CreateBoundary = tRange.CustomCommand("Boundary", "CreateBoundary")
+    Else
+        Err.Raise 13, Source:="CreateBoundary", _
+            Description:="Type mismatch: ShapeOrRange должен быть Shape или ShapeRange"
+        Exit Function
+    End If
+    Exit Function
+Catch:
+    Debug.Print Err.Number
+End Function
+
+'инструмент Crop Tool
+Public Function CropTool( _
+                    ByVal ShapeOrRangeOrPage As Object, _
+                    ByVal x1#, ByVal y1#, _
+                    ByVal x2#, ByVal y2#, _
+                    Optional ByVal Angle = 0 _
+                ) As ShapeRange
+    If TypeOf ShapeOrRangeOrPage Is Shape Or _
+         TypeOf ShapeOrRangeOrPage Is ShapeRange Or _
+         TypeOf ShapeOrRangeOrPage Is Page Then
+        Set CropTool = ShapeOrRangeOrPage.CustomCommand("Crop", "CropRectArea", x1, y1, x2, y2, Angle)
+    Else
+        Err.Raise 13, Source:="CropTool", _
+            Description:="Type mismatch: ShapeOrRangeOrPage должен быть Shape, ShapeRange или Page"
+        Exit Function
+    End If
+End Function
+
+'отрезать кусок от Shape по контуру Knife, возвращает отрезанный кусок
+Public Function Dissect(ByRef Shape As Shape, ByRef Knife As Shape) As Shape
+    Set Dissect = Intersect(Knife, Shape, True, True)
+    Set Shape = Knife.Trim(Shape, True, False)
+End Function
+
+'дублировать активную страницу со всеми слоями и объектами
+Public Function DuplicateActivePage( _
+                    ByVal NumberOfPages As Long, _
+                    Optional ByVal ExcludeLayerName As String = "" _
+                ) As Page
+    Dim tRange As ShapeRange
+    Dim tShape As Shape, sDuplicate As Shape
+    Dim tProps As typeLayerProps
+    Dim i&
+    For i = 1 To NumberOfPages
+        Set tRange = FindShapesActivePageLayers
+        Set DuplicateActivePage = _
+            ActiveDocument.InsertPages(1, False, ActivePage.Index)
+        DuplicateActivePage.SizeHeight = ActivePage.SizeHeight
+        DuplicateActivePage.SizeWidth = ActivePage.SizeWidth
+        For Each tShape In tRange.ReverseRange
+            If tShape.Layer.Name <> ExcludeLayerName Then
+                LayerPropsPreserveAndReset tShape.Layer, tProps
+                Set sDuplicate = tShape.Duplicate
+                sDuplicate.MoveToLayer _
+                    FindLayerDuplicate(DuplicateActivePage, tShape.Layer)
+                LayerPropsRestore tShape.Layer, tProps
+            End If
+        Next tShape
+    Next i
+End Function
+
+Public Sub FillInside( _
+               ByVal ShapeToFill As Shape, _
+               ByVal TargetRect As Rect _
+           )
+    If GetHeightKeepProportions(ShapeToFill.BoundingBox, TargetRect.Width) _
+     > TargetRect.Height Then
+        ShapeToFill.SetSize TargetRect.Width
+    Else
+        ShapeToFill.SetSize , TargetRect.Height
+    End If
+    ShapeToFill.CenterX = TargetRect.CenterX
+    ShapeToFill.CenterY = TargetRect.CenterY
+End Sub
+
+Public Sub FitInside( _
+               ByVal ShapeToFit As Shape, _
+               ByVal TargetRect As Rect _
+           )
+    If GetHeightKeepProportions(ShapeToFit.BoundingBox, TargetRect.Width) _
+     > TargetRect.Height Then
+        ShapeToFit.SetSize , TargetRect.Height
+    Else
+        ShapeToFit.SetSize TargetRect.Width
+    End If
+    ShapeToFit.CenterX = TargetRect.CenterX
+    ShapeToFit.CenterY = TargetRect.CenterY
+End Sub
 
 'все объекты на всех страницах, включая мастер-страницу - на один слой
 'все страницы прибиваются, все объекты на слоях guides прибиваются
@@ -144,6 +288,49 @@ Public Function FlattenPagesToLayer(ByVal LayerName As String) As Layer
 
 End Function
 
+'правильный интерсект
+Public Function Intersect( _
+                    ByVal SourceShape As Shape, _
+                    ByVal TargetShape As Shape, _
+                    Optional ByVal LeaveSource As Boolean = True, _
+                    Optional ByVal LeaveTarget As Boolean = True _
+                ) As Shape
+                                     
+    Dim tPropsSource As typeLayerProps
+    Dim tPropsTarget As typeLayerProps
+    
+    If Not SourceShape.Layer Is TargetShape.Layer Then _
+        LayerPropsPreserveAndReset SourceShape.Layer, tPropsSource
+    LayerPropsPreserveAndReset TargetShape.Layer, tPropsTarget
+    
+    Set Intersect = SourceShape.Intersect(TargetShape)
+    
+    If Not SourceShape.Layer Is TargetShape.Layer Then _
+        LayerPropsRestore SourceShape.Layer, tPropsSource
+    LayerPropsRestore TargetShape.Layer, tPropsTarget
+    
+    If Intersect Is Nothing Then Exit Function
+    
+    Intersect.OrderFrontOf TargetShape
+    If Not LeaveSource Then SourceShape.Delete
+    If Not LeaveTarget Then TargetShape.Delete
+
+End Function
+
+'инструмент Join Curves
+Public Function JoinCurves(ByVal SrcRange As ShapeRange, ByVal Tolerance As Double)
+    SrcRange.CustomCommand "ConvertTo", "JoinCurves", Tolerance
+End Function
+
+'не работает с поверклипом
+Public Sub MatrixCopy(ByVal SourceShape As Shape, ByVal TargetShape As Shape)
+    Dim tMatrix As typeMatrix
+    With tMatrix
+        SourceShape.GetMatrix .d11, .d12, .d21, .d22, .tx, .ty
+        TargetShape.SetMatrix .d11, .d12, .d21, .d22, .tx, .ty
+    End With
+End Sub
+
 'правильно перемещает Shape или ShapeRange на другой слой
 Public Function MoveToLayer( _
                     ByVal ShapeOrRange As Object, _
@@ -186,76 +373,26 @@ Public Function MoveToLayer( _
 
 End Function
 
-'правильно копирует Shape или ShapeRange на другой слой
-Public Function CopyToLayer( _
-                    ByVal ShapeOrRange As Object, _
-                    ByVal Layer As Layer _
-                ) As Object
-
-    If Not TypeOf ShapeOrRange Is Shape And Not TypeOf ShapeOrRange Is ShapeRange Then
-        Err.Raise 13, Source:="CopyToLayer", _
-                  Description:="Type mismatch: ShapeOrRange должен быть Shape или ShapeRange"
-        Exit Function
+'удаление сегмента
+'автор: Alex Vakulenko http://www.oberonplace.com/vba/drawmacros/delsegment.htm
+Public Sub SegmentDelete(ByVal Segment As Segment)
+    If Not Segment.EndNode.IsEnding Then
+        Segment.EndNode.BreakApart
+        Set Segment = Segment.SubPath.LastSegment
     End If
-    
-    Set CopyToLayer = ShapeOrRange.Duplicate
-    MoveToLayer CopyToLayer, Layer
+    Segment.EndNode.Delete
+End Sub
 
-End Function
-
-'дублировать активную страницу со всеми слоями и объектами
-Public Function DuplicateActivePage( _
-                    ByVal NumberOfPages As Long, _
-                    Optional ByVal ExcludeLayerName As String = "" _
-                ) As Page
-    Dim tRange As ShapeRange
-    Dim tShape As Shape, sDuplicate As Shape
-    Dim tProps As typeLayerProps
-    Dim i&
-    For i = 1 To NumberOfPages
-        Set tRange = FindShapesActivePageLayers
-        Set DuplicateActivePage = _
-            ActiveDocument.InsertPages(1, False, ActivePage.Index)
-        DuplicateActivePage.SizeHeight = ActivePage.SizeHeight
-        DuplicateActivePage.SizeWidth = ActivePage.SizeWidth
-        For Each tShape In tRange.ReverseRange
-            If tShape.Layer.Name <> ExcludeLayerName Then
-                LayerPropsPreserveAndReset tShape.Layer, tProps
-                Set sDuplicate = tShape.Duplicate
-                sDuplicate.MoveToLayer _
-                    FindLayerDuplicate(DuplicateActivePage, tShape.Layer)
-                LayerPropsRestore tShape.Layer, tProps
-            End If
-        Next tShape
-    Next i
-End Function
-
-'перекрашивает объект в чёрный или белый в серой шкале,
-'в зависимости от исходного цвета
-'ДОРАБОТАТЬ
-Public Function ContrastShape(ByVal Shape As Shape) As Shape
-    With Shape.Fill
-        Select Case .Type
-            Case cdrUniformFill
-                .UniformColor.ConvertToGray
-                If .UniformColor.Gray < 128 Then
-                    .UniformColor.GrayAssign 0
-                Else
-                    .UniformColor.GrayAssign 255
-                End If
-            Case cdrFountainFill
-                'todo
-        End Select
-    End With
-    With Shape.Outline
-        If Not .Type = cdrNoOutline Then
-            .Color.ConvertToGray
-            If .Color.Gray < 128 Then _
-                .Color.GrayAssign 0 Else .Color.GrayAssign 255
-        End If
-    End With
-    Set ContrastShape = Shape
-End Function
+'присвоить цвет абриса ренджу
+Public Sub SetOutlineColor( _
+               ByVal Shapes As ShapeRange, _
+               ByVal Color As Color _
+           )
+    Dim Shape As Shape
+    For Each Shape In Shapes
+        Shape.Outline.Color.CopyAssign Color
+    Next Shape
+End Sub
 
 'обрезать битмап по CropEnvelopeShape, но по-умному,
 'сначала кропнув на EXPANDBY пикселей побольше
@@ -301,142 +438,19 @@ Finally:
     
 End Function
 
-'правильный интерсект
-Public Function Intersect( _
-                    ByVal SourceShape As Shape, _
-                    ByVal TargetShape As Shape, _
-                    Optional ByVal LeaveSource As Boolean = True, _
-                    Optional ByVal LeaveTarget As Boolean = True _
-                ) As Shape
-                                     
-    Dim tPropsSource As typeLayerProps
-    Dim tPropsTarget As typeLayerProps
-    
-    If Not SourceShape.Layer Is TargetShape.Layer Then _
-        LayerPropsPreserveAndReset SourceShape.Layer, tPropsSource
-    LayerPropsPreserveAndReset TargetShape.Layer, tPropsTarget
-    
-    Set Intersect = SourceShape.Intersect(TargetShape)
-    
-    If Not SourceShape.Layer Is TargetShape.Layer Then _
-        LayerPropsRestore SourceShape.Layer, tPropsSource
-    LayerPropsRestore TargetShape.Layer, tPropsTarget
-    
-    If Intersect Is Nothing Then Exit Function
-    
-    Intersect.OrderFrontOf TargetShape
-    If Not LeaveSource Then SourceShape.Delete
-    If Not LeaveTarget Then TargetShape.Delete
-
+Public Function WeldShapes(ByVal Shapes As ShapeRange) As Shape
+    Set WeldShapes = Shapes.FirstShape
+    Do Until Shapes.Count = 1
+        Shapes(1).CreateSelection
+        Shapes(2).AddToSelection
+        Shapes.Remove 1
+        Shapes.Remove 1
+        With ActiveSelectionRange
+            Set WeldShapes = .FirstShape.Weld(.LastShape)
+        End With
+        Shapes.Add WeldShapes
+    Loop
 End Function
-
-'отрезать кусок от Shape по контуру Knife, возвращает отрезанный кусок
-Public Function Dissect(ByRef Shape As Shape, ByRef Knife As Shape) As Shape
-    Set Dissect = Intersect(Knife, Shape, True, True)
-    Set Shape = Knife.Trim(Shape, True, False)
-End Function
-
-'инструмент Crop Tool
-Public Function CropTool( _
-                    ByVal ShapeOrRangeOrPage As Object, _
-                    ByVal x1#, ByVal y1#, _
-                    ByVal x2#, ByVal y2#, _
-                    Optional ByVal Angle = 0 _
-                ) As ShapeRange
-    If TypeOf ShapeOrRangeOrPage Is Shape Or _
-         TypeOf ShapeOrRangeOrPage Is ShapeRange Or _
-         TypeOf ShapeOrRangeOrPage Is Page Then
-        Set CropTool = ShapeOrRangeOrPage.CustomCommand("Crop", "CropRectArea", x1, y1, x2, y2, Angle)
-    Else
-        Err.Raise 13, Source:="CropTool", _
-            Description:="Type mismatch: ShapeOrRangeOrPage должен быть Shape, ShapeRange или Page"
-        Exit Function
-    End If
-End Function
-
-'инструмент Boundary
-Public Function CreateBoundary(ByVal ShapeOrRange As Object) As Shape
-    On Error GoTo Catch
-    Dim tShape As Shape, tRange As ShapeRange
-    'просто объект не ест, надо конкретный тип
-    If TypeOf ShapeOrRange Is Shape Then
-        Set tShape = ShapeOrRange
-        Set CreateBoundary = tShape.CustomCommand("Boundary", "CreateBoundary")
-    ElseIf TypeOf ShapeOrRange Is ShapeRange Then
-        Set tRange = ShapeOrRange
-        Set CreateBoundary = tRange.CustomCommand("Boundary", "CreateBoundary")
-    Else
-        Err.Raise 13, Source:="CreateBoundary", _
-            Description:="Type mismatch: ShapeOrRange должен быть Shape или ShapeRange"
-        Exit Function
-    End If
-    Exit Function
-Catch:
-    Debug.Print Err.Number
-End Function
-
-'инструмент Join Curves
-Public Function JoinCurves(ByVal SrcRange As ShapeRange, ByVal Tolerance As Double)
-    SrcRange.CustomCommand "ConvertTo", "JoinCurves", Tolerance
-End Function
-
-'удаление сегмента
-'автор: Alex Vakulenko http://www.oberonplace.com/vba/drawmacros/delsegment.htm
-Public Sub SegmentDelete(ByVal Segment As Segment)
-    If Not Segment.EndNode.IsEnding Then
-        Segment.EndNode.BreakApart
-        Set Segment = Segment.SubPath.LastSegment
-    End If
-    Segment.EndNode.Delete
-End Sub
-
-'не работает с поверклипом
-Public Sub MatrixCopy(ByVal SourceShape As Shape, ByVal TargetShape As Shape)
-    Dim tMatrix As typeMatrix
-    With tMatrix
-        SourceShape.GetMatrix .d11, .d12, .d21, .d22, .tx, .ty
-        TargetShape.SetMatrix .d11, .d12, .d21, .d22, .tx, .ty
-    End With
-End Sub
-
-'присвоить цвет абриса ренджу
-Public Sub SetOutlineColor( _
-               ByVal Shapes As ShapeRange, _
-               ByVal Color As Color _
-           )
-    Dim Shape As Shape
-    For Each Shape In Shapes
-        Shape.Outline.Color.CopyAssign Color
-    Next Shape
-End Sub
-
-Public Sub FitInside( _
-               ByVal ShapeToFit As Shape, _
-               ByVal TargetRect As Rect _
-           )
-    If GetHeightKeepProportions(ShapeToFit.BoundingBox, TargetRect.Width) _
-     > TargetRect.Height Then
-        ShapeToFit.SetSize , TargetRect.Height
-    Else
-        ShapeToFit.SetSize TargetRect.Width
-    End If
-    ShapeToFit.CenterX = TargetRect.CenterX
-    ShapeToFit.CenterY = TargetRect.CenterY
-End Sub
-
-Public Sub FillInside( _
-               ByVal ShapeToFill As Shape, _
-               ByVal TargetRect As Rect _
-           )
-    If GetHeightKeepProportions(ShapeToFill.BoundingBox, TargetRect.Width) _
-     > TargetRect.Height Then
-        ShapeToFill.SetSize TargetRect.Width
-    Else
-        ShapeToFill.SetSize , TargetRect.Height
-    End If
-    ShapeToFill.CenterX = TargetRect.CenterX
-    ShapeToFill.CenterY = TargetRect.CenterY
-End Sub
 
 '===============================================================================
 ' функции поиска и получения информации об объектах корела

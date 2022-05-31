@@ -3,7 +3,7 @@ Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} MainView
    ClientHeight    =   6600
    ClientLeft      =   45
    ClientTop       =   390
-   ClientWidth     =   8595.001
+   ClientWidth     =   8040
    OleObjectBlob   =   "MainView.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -63,6 +63,18 @@ End Sub
 
 Private Sub OptionResultBelow_Click()
     OptionResultAbove = Not OptionResultBelow
+End Sub
+
+Private Sub TextBoxOffset_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+    If KeyCode = 13 Then FormŒ 
+End Sub
+
+Private Sub TextBoxOutlineWidth_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+    If KeyCode = 13 Then FormŒ 
+End Sub
+
+Private Sub TextBoxName_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
+    If KeyCode = 13 Then FormŒ 
 End Sub
 
 Private Sub ButtonOk_Click()
