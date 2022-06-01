@@ -173,7 +173,7 @@ Private Function Trace(ByVal BitmapShape As Shape) As Shape
     With BitmapShape.Bitmap.Trace(cdrTraceLowQualityImage)
         .BackgroundRemovalMode = cdrTraceBackgroundAutomatic
         '.CornerSmoothness = 50
-        .DetailLevelPercent = 10
+        .DetailLevelPercent = 50
         '.SetColorCount 8
         .MergeAdjacentObjects = True
         .RemoveBackground = True
