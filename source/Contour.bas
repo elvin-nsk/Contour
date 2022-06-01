@@ -9,10 +9,10 @@ Attribute VB_Name = "Contour"
 
 Option Explicit
 
-Public Const RELEASE As Boolean = False
+Public Const RELEASE As Boolean = True
 
 Public Const APP_NAME As String = "Contour"
-Public Const APP_URL As String = "https://vk.com/elvin_macro/" & APP_NAME
+Public Const APP_URL As String = "https://vk.com/tverlogo"
 
 '===============================================================================
 

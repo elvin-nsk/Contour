@@ -24,12 +24,13 @@ Private Sub Class_Initialize()
         .Add "Common.ErrNoDocument", "Нет активного документа"
         .Add "Common.ErrNoSelection", "Выделите объекты"
         .Add "Common.ErrDisabledLayer", _
-            "Откройте текущий слой для редактирования"
+            "Активный слой заблокирован или невидим"
         .Add "Common.ErrConfig", "Ошибка в настройках"
         
         .Add "ProgressBar.TraceCaption", "Трассировка..."
         .Add "ProgressBar.TraceMiddle", "из"
         
+        .Add "MainView.Caption", "Тверской, мать его, контур"
         .Add "MainView.FrameContour", "Контур"
         .Add "MainView.LabelOffset", "Отступ"
         .Add "MainView.LabelOffsetUnits", "мм"

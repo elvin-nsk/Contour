@@ -121,10 +121,16 @@ Public Function Contour( _
                     ByVal Shape As Shape, _
                     ByVal Offset As Double _
                  ) As Shape
+    Dim Direction As cdrContourDirection
+    If Offset > 0 Then
+        Direction = cdrContourOutside
+    Else
+        Direction = cdrContourInside
+    End If
     Set Contour = _
         Shape.CreateContour( _
-                  Direction:=cdrContourOutside, _
-                  Offset:=Offset, _
+                  Direction:=Direction, _
+                  Offset:=VBA.Abs(Offset), _
                   Steps:=1, _
                   CornerType:=cdrContourCornerRound _
               ).Separate.FirstShape

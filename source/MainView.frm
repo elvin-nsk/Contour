@@ -29,14 +29,14 @@ Public NameHandler As TextBoxHandler
 '===============================================================================
 
 Private Sub UserForm_Initialize()
-    Caption = APP_NAME
+    Caption = LocalizedStrings("MainView.Caption")
     Logo.ControlTipText = APP_URL
     Localize
     
     Set OutlineColor = CreateColor
     Set FillColor = CreateColor
     Set OffsetHandler = _
-        TextBoxHandler.SetDouble(TextBoxOffset, 0.001)
+        TextBoxHandler.SetDouble(TextBoxOffset, -10000#, 10000#)
     Set OutlineWidthHandler = _
         TextBoxHandler.SetDouble(TextBoxOutlineWidth, 0.001)
     Set NameHandler = _

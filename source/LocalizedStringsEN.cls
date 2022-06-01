@@ -24,12 +24,13 @@ Private Sub Class_Initialize()
         .Add "Common.ErrNoDocument", "No active document"
         .Add "Common.ErrNoSelection", "Select shapes"
         .Add "Common.ErrDisabledLayer", _
-            "Make active layer editable"
+            "The active layer is locked or invisible"
         .Add "Common.ErrConfig", "Configuration error"
         
         .Add "ProgressBar.TraceCaption", "Tracing..."
         .Add "ProgressBar.TraceMiddle", "of"
         
+        .Add "MainView.Caption", "Contour"
         .Add "MainView.FrameContour", "Contour"
         .Add "MainView.LabelOffset", "Offset"
         .Add "MainView.LabelOffsetUnits", "mm"

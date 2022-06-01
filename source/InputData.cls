@@ -46,7 +46,7 @@ Public Function GetDocumentOrPage( _
             .InjectShapes .Page.Shapes.All
             .InjectShape .Page.Shapes.First
         Else
-            VBA.MsgBox ErrMsgNoDocument, vbCritical
+            VBA.MsgBox ErrMsgNoDocument, vbExclamation
         End If
     End With
 End Function
@@ -60,11 +60,11 @@ Public Function GetLayer( _
                 ) As InputData
     Set GetLayer = New InputData
     If ActiveDocument Is Nothing Then
-        VBA.MsgBox ErrMsgNoDocument, vbCritical
+        VBA.MsgBox ErrMsgNoDocument, vbExclamation
         Exit Function
     End If
     If Not LayerIsOk(ActiveLayer, LayerMustBeEnabled) Then
-        VBA.MsgBox ErrMsgLayerDisabled, vbInformation
+        VBA.MsgBox ErrMsgLayerDisabled, vbExclamation
         Exit Function
     End If
     With GetLayer
@@ -88,7 +88,7 @@ Public Function GetShapes( _
                 ) As InputData
     Set GetShapes = New InputData
     If ActiveDocument Is Nothing Then
-        VBA.MsgBox ErrMsgNoDocument, vbCritical
+        VBA.MsgBox ErrMsgNoDocument, vbExclamation
         Exit Function
     End If
     If ActiveSelectionRange.Count = 0 Then
@@ -103,7 +103,7 @@ Public Function GetShapes( _
         .InjectLayer .Shape.Layer
         .InjectSuccess LayerIsOk(ActiveLayer, LayerMustBeEnabled)
         If Not .IsSuccess Then
-            VBA.MsgBox ErrMsgLayerDisabled, vbInformation
+            VBA.MsgBox ErrMsgLayerDisabled, vbExclamation
         End If
     End With
 End Function
