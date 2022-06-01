@@ -19,30 +19,6 @@ Private Const MmInInch = 25.4
 
 '===============================================================================
 
-Public Function ExcludeAndTraceBitmaps( _
-                    ByVal Shapes As ShapeRange, _
-                    ByVal OrderAbove As Boolean _
-                ) As ShapeRange
-    Set ExcludeAndTraceBitmaps = CreateShapeRange
-    Dim BitmapShapes As ShapeRange
-    Set BitmapShapes = Shapes.Shapes.FindShapes(Type:=cdrBitmapShape)
-    If BitmapShapes.Count > 0 Then
-        Shapes.RemoveRange BitmapShapes
-        ExcludeAndTraceBitmaps.AddRange TraceBitmaps(BitmapShapes, OrderAbove)
-    End If
-End Function
-
-Public Function TraceBitmaps( _
-                    ByVal BitmapShapes As ShapeRange, _
-                    ByVal OrderAbove As Boolean _
-                ) As ShapeRange
-    Set TraceBitmaps = CreateShapeRange
-    Dim Shape As Shape
-    For Each Shape In BitmapShapes
-        TraceBitmaps.Add TraceBitmap(Shape, OrderAbove)
-    Next Shape
-End Function
-
 Public Function TraceBitmap( _
                     ByVal BitmapShape As Shape, _
                     ByVal OrderAbove As Boolean _
@@ -187,12 +163,6 @@ Public Function CreateShapeRangeFromShape(ByVal Shape As Shape) As ShapeRange
         Shape.Layer.Page.Parent.Parent.CreateShapeRangeFromArray(Shape)
 End Function
 
-Public Sub ThrowConfigError()
-    VBA.Err.Raise CustomError, , "Ошибка в настройках"
-End Sub
-
-'===============================================================================
-
 Private Function Trace(ByVal BitmapShape As Shape) As Shape
     With BitmapShape.Bitmap.Trace(cdrTraceLowQualityImage)
         .BackgroundRemovalMode = cdrTraceBackgroundAutomatic
@@ -206,8 +176,10 @@ Private Function Trace(ByVal BitmapShape As Shape) As Shape
     End With
 End Function
 
+Public Sub ThrowConfigError()
+    VBA.Err.Raise CustomError, , LocalizedStrings("Common.ErrConfig")
+End Sub
+
 Private Sub Class_Initialize()
     If Not Me Is Common Then Err.Raise 425 'Invalid object use
 End Sub
-
-

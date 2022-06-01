@@ -22,28 +22,40 @@ Private Sub Class_Initialize()
     With Strings
         
         .Add "Common.ErrNoDocument", "Нет активного документа"
+        .Add "Common.ErrNoSelection", "Выделите объекты"
+        .Add "Common.ErrDisabledLayer", _
+            "Откройте текущий слой для редактирования"
+        .Add "Common.ErrConfig", "Ошибка в настройках"
         
-        .Add "MainView.frForm", "Формирование композиций"
-        .Add "MainView.obByCount", "по количеству"
-        .Add "MainView.lbColumns", "столбцов"
-        .Add "MainView.lbRows", "строк"
-        .Add "MainView.opByArea", "по площади"
-        .Add "MainView.lbWidth", "мм по ширине"
-        .Add "MainView.lbHeight", "мм по высоте"
-        .Add "MainView.opByPage", "по размеру страницы"
+        .Add "ProgressBar.TraceCaption", "Трассировка..."
+        .Add "ProgressBar.TraceMiddle", "из"
         
-        .Add "MainView.frCompose", "Расположение композиций"
-        .Add "MainView.opOnePage", "на одной странице"
-        .Add "MainView.opMultiplePages", "каждая на своей странице"
+        .Add "MainView.FrameContour", "Контур"
+        .Add "MainView.LabelOffset", "Отступ"
+        .Add "MainView.LabelOffsetUnits", "мм"
+        .Add "MainView.OptionMakeOutline", "Абрис"
+        .Add "MainView.LabelOutlineWidth", "Толщина абриса"
+        .Add "MainView.LabelOutlineUnits", "мм"
+        .Add "MainView.OptionMakeFill", "Заливка"
+        .Add "MainView.OptionMatchColor", "Подобрать цвет"
+        .Add "MainView.OptionTrace", "Трассировать растр"
         
-        .Add "MainView.frSpaces", "Расстояния между элементами"
-        .Add "MainView.lbHorizontalSpace", "мм по ширине"
-        .Add "MainView.lbVerticalSpace", "мм по высоте"
+        .Add "MainView.FrameSource", "Обрабатывать выделенное"
+        .Add "MainView.OptionSourceAsOne", "как единый объект"
+        .Add "MainView.OptionSourceAsIs", "каждый объект отдельно"
+        .Add "MainView.OptionSourceWithinGroups", _
+            "каждый объект отдельно, сгруппированные считать отдельными объектами"
         
-        .Add "MainView.cbNewDocument", "Создать новый документ"
-        .Add "MainView.cbGroup", "Группировать композиции"
+        .Add "MainView.FrameResult", "Результат"
+        .Add "MainView.OptionResultAbove", "над"
+        .Add "MainView.OptionResultBelow", "под"
+        .Add "MainView.OptionResultAsObjects", "каждым объектом"
+        .Add "MainView.OptionResultAsGroup", "объектами отдельной группой"
+        .Add "MainView.OptionResultAsLayer", "текущим слоем на отдельном слое"
+        .Add "MainView.LabelName", "Имя"
+        .Add "MainView.TextBoxName.Default", "контур"
         
-        .Add "MainView.btnOk", "Пуск"
+        .Add "MainView.ButtonOk", "Пуск"
 
     End With
 End Sub

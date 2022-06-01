@@ -72,7 +72,7 @@ Private Sub Assign(ByVal Action As iniAction)
         .KeyVar "OptionResultAsObjects", OptionResultAsObjects, True
         .KeyVar "OptionResultAsGroup", OptionResultAsGroup, False
         .KeyVar "OptionResultAsLayer", OptionResultAsLayer, False
-        .KeyVar "Name", Name, "контур"
+        .KeyVar "Name", Name, LocalizedStrings("MainView.TextBoxName.Default")
     
     End With
     

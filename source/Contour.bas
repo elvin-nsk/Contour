@@ -1,7 +1,7 @@
 Attribute VB_Name = "Contour"
 '===============================================================================
 '   Макрос          : Contour
-'   Версия          : 2022.05.31
+'   Версия          : 2022.06.01
 '   Сайты           : https://vk.com/elvin_macro/Contour
 '                     https://github.com/elvin-nsk
 '   Автор           : elvin-nsk (me@elvin.nsk.ru)
@@ -9,7 +9,7 @@ Attribute VB_Name = "Contour"
 
 Option Explicit
 
-Public Const RELEASE As Boolean = True
+Public Const RELEASE As Boolean = False
 
 Public Const APP_NAME As String = "Contour"
 Public Const APP_URL As String = "https://vk.com/elvin_macro/" & APP_NAME
@@ -24,20 +24,20 @@ Sub Start()
     
     LocalizedStringsInit
     
-    If ActiveDocument Is Nothing Then
-        VBA.MsgBox "Нет активного документа", vbCritical
-        GoTo Finally
-    End If
     Dim Source As ShapeRange
-    Set Source = ActiveSelectionRange
-    If Source.Count = 0 Then
-        VBA.MsgBox "Выделите объекты", vbInformation
-        GoTo Finally
-    End If
-    With ActiveLayer
-        If Not .Visible Or Not .Editable Then
-            VBA.MsgBox "Текущий слой закрыт", vbInformation
+    With InputData.GetShapes( _
+                       ErrMsgNoDocument:= _
+                           LocalizedStrings("Common.ErrNoDocument"), _
+                       LayerMustBeEnabled:=True, _
+                       ErrMsgLayerDisabled:= _
+                           LocalizedStrings("Common.ErrDisabledLayer"), _
+                       ErrNoSelection:= _
+                           LocalizedStrings("Common.ErrNoSelection") _
+                   )
+        If .IsError Then
             GoTo Finally
+        Else
+            Set Source = .Shapes
         End If
     End With
     
@@ -53,6 +53,7 @@ Sub Start()
 
 Finally:
     lib_elvin.BoostFinish
+    Set Cfg = Nothing
     Set LocalizedStrings = Nothing
     Exit Sub
 
@@ -87,7 +88,9 @@ Private Sub Main( _
 
     If Cfg.OptionTrace Then
         TempShapes.AddRange _
-            Common.ExcludeAndTraceBitmaps(ReadyShapes, Cfg.OptionResultAbove)
+            ExcludeAndTraceBitmaps( _
+                ReadyShapes, Cfg.OptionResultAbove _
+            )
         ReadyShapes.AddRange TempShapes
     End If
     
@@ -95,7 +98,7 @@ Private Sub Main( _
     Set Contours = CreateShapeRange
 
     Dim Shape As Shape
-    
+
     Dim BaseShape As Shape
     Dim Contour As Shape
     For Each Shape In ReadyShapes
@@ -170,6 +173,37 @@ Private Sub Main( _
 
 End Sub
 
+Private Function ExcludeAndTraceBitmaps( _
+                    ByVal Shapes As ShapeRange, _
+                    ByVal OrderAbove As Boolean _
+                ) As ShapeRange
+    Set ExcludeAndTraceBitmaps = CreateShapeRange
+    Dim BitmapShapes As ShapeRange
+    Set BitmapShapes = Shapes.Shapes.FindShapes(Type:=cdrBitmapShape)
+    If BitmapShapes.Count > 0 Then
+        Dim PBar As IProgressBar
+        Set PBar = ProgressBar.CreateNumeric(BitmapShapes.Count)
+        PBar.Caption = LocalizedStrings("ProgressBar.TraceCaption")
+        PBar.NumericMiddleText = LocalizedStrings("ProgressBar.TraceMiddle")
+        Shapes.RemoveRange BitmapShapes
+        ExcludeAndTraceBitmaps.AddRange _
+            TraceBitmaps(BitmapShapes, OrderAbove, PBar)
+    End If
+End Function
+
+Private Function TraceBitmaps( _
+                    ByVal BitmapShapes As ShapeRange, _
+                    ByVal OrderAbove As Boolean, _
+                    ByVal PBar As IProgressBar _
+                ) As ShapeRange
+    Set TraceBitmaps = CreateShapeRange
+    Dim Shape As Shape
+    For Each Shape In BitmapShapes
+        TraceBitmaps.Add Common.TraceBitmap(Shape, OrderAbove)
+        PBar.Update
+    Next Shape
+End Function
+
 Private Sub ContourAndAddToRange( _
                     ByVal Shape As Shape, _
                     ByVal ContoursRange As ShapeRange, _
@@ -181,7 +215,7 @@ Private Sub ContourAndAddToRange( _
         Dim NewContour As Shape
         
         'хак с LinkAsChildOf - вытаскиваем сорс для контура из групп
-        'чтобы заработало undo
+        'чтобы работало undo
         If Cfg.OptionResultAsObjects Then
             Set NewContour = Common.Contour(Shape, Cfg.Offset)
             If Cfg.OptionResultAbove Then
@@ -288,8 +322,8 @@ End Function
 '===============================================================================
 
 Private Sub LocalizedStringsInit()
-    With StringLocalizer.Builder(cdrEnglishUS, New LocalizedStringsRU)
-        '.WithLocale cdrRussian, New LocalizedStringsRU
+    With StringLocalizer.Builder(cdrEnglishUS, New LocalizedStringsEN)
+        .WithLocale cdrRussian, New LocalizedStringsRU
         Set LocalizedStrings = .Build
     End With
 End Sub
@@ -300,7 +334,9 @@ End Sub
 
 Private Sub testTraceBitmaps()
     ActiveDocument.Unit = cdrMillimeter
-    Common.TraceBitmaps ActiveSelectionRange, True
+    Dim PBar As IProgressBar
+    Set PBar = ProgressBar.CreateNumeric(ActiveSelectionRange.Count)
+    TraceBitmaps ActiveSelectionRange, True, PBar
 End Sub
 
 Private Sub testContour()
@@ -321,8 +357,4 @@ End Sub
 
 Private Sub testZOrder()
     GetBottomOrderShape(ActiveSelectionRange).CreateSelection
-End Sub
-
-Private Sub testShapeParent()
-    Debug.Print ActiveShape.ParentGroup Is Nothing
 End Sub

@@ -31,7 +31,7 @@ Public NameHandler As TextBoxHandler
 Private Sub UserForm_Initialize()
     Caption = APP_NAME
     Logo.ControlTipText = APP_URL
-    'Localize
+    Localize
     
     Set OutlineColor = CreateColor
     Set FillColor = CreateColor
@@ -40,7 +40,10 @@ Private Sub UserForm_Initialize()
     Set OutlineWidthHandler = _
         TextBoxHandler.SetDouble(TextBoxOutlineWidth, 0.001)
     Set NameHandler = _
-        TextBoxHandler.SetString(TextBoxName, 1, 16)
+        TextBoxHandler.SetString( _
+                           TextBoxName, 1, 16, _
+                           LocalizedStrings("MainView.TextBoxName.Default") _
+                       )
     
 End Sub
 
@@ -50,11 +53,14 @@ Private Sub UserForm_Activate()
 End Sub
 
 Private Sub ButtonOutlineColor_Click()
-    PickColor ButtonOutlineColor, OutlineColor
+    If PickColor(ButtonOutlineColor, OutlineColor) Then OptionMakeOutline = True
 End Sub
 
 Private Sub ButtonFillColor_Click()
-    PickColor ButtonFillColor, FillColor
+    If PickColor(ButtonFillColor, FillColor) Then
+        OptionMakeFill = True
+        OptionFillColor = True
+    End If
 End Sub
 
 Private Sub OptionResultAbove_Click()
@@ -99,6 +105,8 @@ Private Sub Localize()
     LabelOffset.Caption = LocalizedStrings("MainView.LabelOffset")
     LabelOffsetUnits.Caption = LocalizedStrings("MainView.LabelOffsetUnits")
     OptionMakeOutline.Caption = LocalizedStrings("MainView.OptionMakeOutline")
+    LabelOutlineWidth.Caption = LocalizedStrings("MainView.LabelOutlineWidth")
+    LabelOutlineUnits.Caption = LocalizedStrings("MainView.LabelOutlineUnits")
     OptionMakeFill.Caption = LocalizedStrings("MainView.OptionMakeFill")
     OptionMatchColor.Caption = LocalizedStrings("MainView.OptionMatchColor")
     OptionTrace.Caption = LocalizedStrings("MainView.OptionTrace")
@@ -109,12 +117,14 @@ Private Sub Localize()
     OptionSourceWithinGroups.Caption = LocalizedStrings("MainView.OptionSourceWithinGroups")
     
     FrameResult.Caption = LocalizedStrings("MainView.FrameResult")
+    OptionResultAbove.Caption = LocalizedStrings("MainView.OptionResultAbove")
+    OptionResultBelow.Caption = LocalizedStrings("MainView.OptionResultBelow")
     OptionResultAsObjects.Caption = LocalizedStrings("MainView.OptionResultAsObjects")
     OptionResultAsGroup.Caption = LocalizedStrings("MainView.OptionResultAsGroup")
     OptionResultAsLayer.Caption = LocalizedStrings("MainView.OptionResultAsLayer")
+    LabelName.Caption = LocalizedStrings("MainView.LabelName")
     
     ButtonOk.Caption = LocalizedStrings("MainView.ButtonOk")
-    ButtonCancel.Caption = LocalizedStrings("MainView.ButtonCancel")
 
 End Sub
 
@@ -126,17 +136,18 @@ Private Function ColorToRGB(ByVal Color As Color) As Long
     End With
 End Function
 
-Private Sub PickColor( _
-                ByVal TargetButton As MSForms.CommandButton, _
-                ByVal TargetColor As Color _
-            )
+Private Function PickColor( _
+                     ByVal TargetButton As MSForms.CommandButton, _
+                     ByVal TargetColor As Color _
+                 ) As Boolean
     Dim PickedColor As Color
     Set PickedColor = CreateColor
     PickedColor.CopyAssign TargetColor
-    If Not PickedColor.UserAssignEx Then Exit Sub
+    If Not PickedColor.UserAssignEx Then Exit Function
     TargetColor.CopyAssign PickedColor
     TargetButton.BackColor = ColorToRGB(PickedColor)
-End Sub
+    PickColor = True
+End Function
 
 Private Sub FormŒ ()
     Me.Hide
