@@ -121,11 +121,18 @@ Public Function Contour( _
                     ByVal Shape As Shape, _
                     ByVal Offset As Double _
                  ) As Shape
+                 
+    Dim ShapeToProcess As Shape
+    Dim DeleteShape As Boolean
+    
     Dim Direction As cdrContourDirection
     If Offset > 0 Then
         Direction = cdrContourOutside
-    Else
+    ElseIf Offset < 0 Then
         Direction = cdrContourInside
+    ElseIf Offset = 0 Then
+        Set Contour = lib_elvin.CreateBoundary(Shape)
+        Exit Function
     End If
     Set Contour = _
         Shape.CreateContour( _
@@ -134,6 +141,9 @@ Public Function Contour( _
                   Steps:=1, _
                   CornerType:=cdrContourCornerRound _
               ).Separate.FirstShape
+              
+    If DeleteShape Then ShapeToProcess.Delete
+        
 End Function
 
 Public Sub AverageFill( _

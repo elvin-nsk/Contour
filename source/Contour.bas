@@ -1,7 +1,7 @@
 Attribute VB_Name = "Contour"
 '===============================================================================
 '   Макрос          : Contour
-'   Версия          : 2022.06.01
+'   Версия          : 2022.06.02
 '   Сайты           : https://vk.com/elvin_macro/Contour
 '                     https://github.com/elvin-nsk
 '   Автор           : elvin-nsk (me@elvin.nsk.ru)
