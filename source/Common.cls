@@ -119,7 +119,8 @@ End Function
 
 Public Function Contour( _
                     ByVal Shape As Shape, _
-                    ByVal Offset As Double _
+                    ByVal Offset As Double, _
+                    ByVal RoundCorners As Boolean _
                  ) As Shape
                  
     Dim ShapeToProcess As Shape
@@ -134,12 +135,24 @@ Public Function Contour( _
         Set Contour = lib_elvin.CreateBoundary(Shape)
         Exit Function
     End If
+    
+    Dim Cap As cdrContourEndCapType
+    Dim Corner As cdrContourCornerType
+    If RoundCorners Then
+        Cap = cdrContourRoundCap
+        Corner = cdrContourCornerRound
+    Else
+        Cap = cdrContourSquareCap
+        Corner = cdrContourCornerMiteredOffsetBevel
+    End If
+    
     Set Contour = _
         Shape.CreateContour( _
-                  Direction:=Direction, _
+                Direction:=Direction, _
                   Offset:=VBA.Abs(Offset), _
                   Steps:=1, _
-                  CornerType:=cdrContourCornerRound _
+                  EndCapType:=Cap, _
+                  CornerType:=Corner _
               ).Separate.FirstShape
               
     If DeleteShape Then ShapeToProcess.Delete

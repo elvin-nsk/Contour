@@ -110,6 +110,7 @@ Private Sub Localize()
     OptionMakeFill.Caption = LocalizedStrings("MainView.OptionMakeFill")
     OptionMatchColor.Caption = LocalizedStrings("MainView.OptionMatchColor")
     OptionTrace.Caption = LocalizedStrings("MainView.OptionTrace")
+    OptionRoundCorners.Caption = LocalizedStrings("MainView.OptionRoundCorners")
     
     FrameSource.Caption = LocalizedStrings("MainView.FrameSource")
     OptionSourceAsOne.Caption = LocalizedStrings("MainView.OptionSourceAsOne")

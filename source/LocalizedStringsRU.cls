@@ -40,6 +40,7 @@ Private Sub Class_Initialize()
         .Add "MainView.OptionMakeFill", "Заливка"
         .Add "MainView.OptionMatchColor", "Подобрать цвет"
         .Add "MainView.OptionTrace", "Трассировать растр"
+        .Add "MainView.OptionRoundCorners", "Скруглять углы"
         
         .Add "MainView.FrameSource", "Обрабатывать выделенное"
         .Add "MainView.OptionSourceAsOne", "как единый объект"

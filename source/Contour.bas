@@ -1,7 +1,7 @@
 Attribute VB_Name = "Contour"
 '===============================================================================
 '   Макрос          : Contour
-'   Версия          : 2022.06.02
+'   Версия          : 2022.06.07
 '   Сайты           : https://vk.com/elvin_macro/Contour
 '                     https://github.com/elvin-nsk
 '   Автор           : elvin-nsk (me@elvin.nsk.ru)
@@ -217,7 +217,8 @@ Private Sub ContourAndAddToRange( _
         'хак с LinkAsChildOf - вытаскиваем сорс для контура из групп
         'чтобы работало undo
         If Cfg.OptionResultAsObjects Then
-            Set NewContour = Common.Contour(Shape, Cfg.Offset)
+            Set NewContour = _
+                Common.Contour(Shape, Cfg.Offset, Cfg.OptionRoundCorners)
             If Cfg.OptionResultAbove Then
                 NewContour.OrderFrontOf Shape
             Else
@@ -227,13 +228,16 @@ Private Sub ContourAndAddToRange( _
             If Not Shape.ParentGroup Is Nothing Then
                 Set TempShape = Shape.Duplicate
                 TempShape.TreeNode.LinkAsChildOf Shape.Layer.TreeNode
-                Set NewContour = Common.Contour(TempShape, Cfg.Offset)
+                Set NewContour = _
+                    Common.Contour(TempShape, Cfg.Offset, Cfg.OptionRoundCorners)
                 TempShape.Delete
             Else
-                Set NewContour = Common.Contour(Shape, Cfg.Offset)
+                Set NewContour = _
+                    Common.Contour(Shape, Cfg.Offset, Cfg.OptionRoundCorners)
             End If
         Else
-            Set NewContour = Common.Contour(Shape, Cfg.Offset)
+            Set NewContour = _
+                Common.Contour(Shape, Cfg.Offset, Cfg.OptionRoundCorners)
         End If
         
         If AssignFill Then
@@ -279,6 +283,7 @@ Private Function ShowViewAndGetResult(ByVal Cfg As Config) As Boolean
         .OptionMatchColor = Cfg.OptionMatchColor
         Set .FillColor = CreateColor(Cfg.FillColor)
         .OptionTrace = Cfg.OptionTrace
+        .OptionRoundCorners = Cfg.OptionRoundCorners
         
         .OptionSourceAsOne = Cfg.OptionSourceAsOne
         .OptionSourceAsIs = Cfg.OptionSourceAsIs
@@ -304,6 +309,7 @@ Private Function ShowViewAndGetResult(ByVal Cfg As Config) As Boolean
         Cfg.OptionMatchColor = .OptionMatchColor
         Cfg.FillColor = .FillColor.ToString
         Cfg.OptionTrace = .OptionTrace
+        Cfg.OptionRoundCorners = .OptionRoundCorners
         
         Cfg.OptionSourceAsOne = .OptionSourceAsOne
         Cfg.OptionSourceAsIs = .OptionSourceAsIs
@@ -342,7 +348,7 @@ End Sub
 Private Sub testContour()
     ActiveDocument.BeginCommandGroup "testContour"
     ActiveDocument.Unit = cdrMillimeter
-    Common.Contour(ActiveShape, 3).Outline.Color.CMYKAssign 0, 0, 0, 100
+    Common.Contour(ActiveShape, 3, True).Outline.Color.CMYKAssign 0, 0, 0, 100
     ActiveDocument.EndCommandGroup
 End Sub
 

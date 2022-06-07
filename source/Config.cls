@@ -30,6 +30,7 @@ Public OptionFillColor As Boolean
 Public OptionMatchColor As Boolean
 Public FillColor As String
 Public OptionTrace As Boolean
+Public OptionRoundCorners As Boolean
 
 Public OptionSourceAsOne As Boolean
 Public OptionSourceAsIs As Boolean
@@ -60,6 +61,7 @@ Private Sub Assign(ByVal Action As iniAction)
         .KeyVar "OptionMatchColor", OptionMatchColor, True
         .KeyVar "FillColor", FillColor, "CMYK,USER,0,0,0,0"
         .KeyVar "OptionTrace", OptionTrace, True
+        .KeyVar "OptionRoundCorners", OptionRoundCorners, True
         
         .Section = "Source"
         .KeyVar "OptionSourceAsOne", OptionSourceAsOne, False

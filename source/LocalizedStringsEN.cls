@@ -40,6 +40,7 @@ Private Sub Class_Initialize()
         .Add "MainView.OptionMakeFill", "Fill"
         .Add "MainView.OptionMatchColor", "Match color"
         .Add "MainView.OptionTrace", "Trace bitmaps"
+        .Add "MainView.OptionRoundCorners", "Round corners"
         
         .Add "MainView.FrameSource", "Process selection"
         .Add "MainView.OptionSourceAsOne", "as one shape"
