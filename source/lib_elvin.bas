@@ -1,7 +1,7 @@
 Attribute VB_Name = "lib_elvin"
 '===============================================================================
 '   Модуль          : lib_elvin
-'   Версия          : 2022.05.31
+'   Версия          : 2022.08.03
 '   Автор           : elvin-nsk (me@elvin.nsk.ru)
 '   Использован код : dizzy (из макроса CtC), Alex Vakulenko
 '                     и др.
@@ -14,7 +14,6 @@ Option Explicit
 
 '===============================================================================
 ' # приватные переменные модуля
-'===============================================================================
 
 Private Type typeLayerProps
     Visible As Boolean
@@ -25,8 +24,7 @@ End Type
 Private StartTime As Double
 
 '===============================================================================
-' публичные переменные
-'===============================================================================
+' # публичные переменные
 
 Public Const CustomError = vbObjectError Or 32
 
@@ -40,8 +38,7 @@ Public Type typeMatrix
 End Type
 
 '===============================================================================
-' функции общего назначения
-'===============================================================================
+' # функции общего назначения
 
 '-------------------------------------------------------------------------------
 ' Функции           : BoostStart, BoostFinish
@@ -91,8 +88,587 @@ Public Sub BoostFinish(Optional ByVal EndUndoGroup As Boolean = True)
 End Sub
 
 '===============================================================================
-' функции манипуляций с объектами корела
+' # функции поиска и получения информации об объектах корела
+
+'возвращает среднее сторон шейпа/рэйнджа/страницы
+Public Function AverageDim(ByVal ShapeOrRangeOrPage As Object) As Double
+    If Not TypeOf ShapeOrRangeOrPage Is Shape _
+   And Not TypeOf ShapeOrRangeOrPage Is ShapeRange _
+   And Not TypeOf ShapeOrRangeOrPage Is Page Then
+        Err.Raise 13, Source:="AverageDim", _
+                  Description:="Type mismatch: ShapeOrRangeOrPage должен быть Shape, ShapeRange или Page"
+        Exit Function
+    End If
+    AverageDim = (ShapeOrRangeOrPage.SizeWidth + ShapeOrRangeOrPage.SizeHeight) _
+               / 2
+End Function
+
+'находит все шейпы с данным именем, включая шейпы в поверклипах, с рекурсией
+Public Function FindShapesByName( _
+                    ByVal ShapeRange As ShapeRange, _
+                    ByVal Name As String _
+                ) As ShapeRange
+    Set FindShapesByName = FindAllShapes(ShapeRange).Shapes.FindShapes(Name)
+End Function
+
+'находит все шейпы, часть имени которых совпадает с NamePart,
+'включая шейпы в поверклипах, с рекурсией
+Public Function FindShapesByNamePart( _
+                    ByVal ShapeRange As ShapeRange, _
+                    ByVal NamePart As String _
+                ) As ShapeRange
+    Set FindShapesByNamePart = FindAllShapes(ShapeRange).Shapes.FindShapes( _
+                                   Query:="@Name.Contains('" & NamePart & "')" _
+                               )
+End Function
+
+'находит поверклипы, без рекурсии
+Public Function FindPowerClips(ByVal ShapeRange As ShapeRange) As ShapeRange
+    Set FindPowerClips = CreateShapeRange
+    'On Error Resume Next
+    'FindPowerClips.AddRange ShapeRange.Shapes.FindShapes(Query:="!@com.PowerClip.IsNull")
+    Dim Shape As Shape
+    For Each Shape In ShapeRange
+        If Not lib_elvin.IsNothing(Shape) Then _
+            If Not Shape.PowerClip Is Nothing Then FindPowerClips.Add Shape
+    Next Shape
+End Function
+
+'находит содержимое поверклипов, без рекурсии
+Public Function FindShapesInPowerClips(ByVal ShapeRange As ShapeRange) As ShapeRange
+    Dim Shape As Shape
+    Set FindShapesInPowerClips = CreateShapeRange
+    For Each Shape In FindPowerClips(ShapeRange)
+        FindShapesInPowerClips.AddRange Shape.PowerClip.Shapes.All
+    Next Shape
+End Function
+
+'находит все шейпы, включая шейпы в поверклипах, с рекурсией
+Public Function FindAllShapes(ByVal ShapeRange As ShapeRange) As ShapeRange
+    Dim Shape As Shape
+    Set FindAllShapes = CreateShapeRange
+    FindAllShapes.AddRange ShapeRange.Shapes.FindShapes
+    For Each Shape In FindPowerClips(ShapeRange)
+        FindAllShapes.AddRange FindAllShapes(Shape.PowerClip.Shapes.All)
+    Next Shape
+End Function
+
+'отсюда: https://community.coreldraw.com/talk/coreldraw_graphics_suite_x4/f/coreldraw-graphics-suite-x4/57576/macro-list-fonts-within-a-text-file
+Public Sub FindFontsInRange( _
+                ByVal TextRange As TextRange, _
+                ByVal ioFonts As Collection _
+            )
+    Dim FontName As String
+    Dim Before As TextRange, After As TextRange
+    FontName = TextRange.Font
+    If FontName = "" Then
+        ' There are more than one font in the range
+        ' Divide the range in two and look into each half separately
+        ' to see if any of them has the same font. Repeat recursively
+        Set Before = TextRange.Duplicate
+        Before.End = (Before.Start + Before.End) \ 2
+        Set After = TextRange.Duplicate
+        After.Start = Before.End
+        FindFontsInRange Before, ioFonts
+        FindFontsInRange After, ioFonts
+    Else
+        AddFontToCollection FontName, ioFonts
+    End If
+End Sub
+'+++
+Private Sub AddFontToCollection( _
+                ByVal FontName As String, _
+                ByVal ioFonts As Collection _
+            )
+    Dim Font As Variant
+    Dim Found As Boolean
+    Found = False
+    For Each Font In ioFonts
+        If Font = FontName Then
+            Found = True
+            Exit For
+        End If
+    Next Font
+    If Not Found Then ioFonts.Add FontName
+End Sub
+
+'возвращает все шейпы на всех слоях текущей страницы, по умолчанию - без мастер-слоёв и без гайдов
+Public Function FindShapesActivePageLayers( _
+                    Optional ByVal GuidesLayers As Boolean, _
+                    Optional ByVal MasterLayers As Boolean _
+                ) As ShapeRange
+    Dim tLayer As Layer
+    Set FindShapesActivePageLayers = CreateShapeRange
+    For Each tLayer In ActivePage.Layers
+        If Not (tLayer.IsGuidesLayer And (GuidesLayers = False)) Then _
+            FindShapesActivePageLayers.AddRange tLayer.Shapes.All
+    Next
+    If MasterLayers Then
+        For Each tLayer In ActiveDocument.MasterPage.Layers
+            If Not (tLayer.IsGuidesLayer And (GuidesLayers = False)) Then _
+                FindShapesActivePageLayers.AddRange tLayer.Shapes.All
+    Next
+    End If
+End Function
+
+'возвращает коллекцию слоёв с текущей страницы, имена которых включают NamePart
+Public Function FindLayersActivePageByNamePart( _
+                    ByVal NamePart As String, _
+                    Optional ByVal SearchMasters = True _
+                ) As Collection
+    Dim tLayer As Layer
+    Dim tLayers As Layers
+    If SearchMasters Then
+        Set tLayers = ActivePage.AllLayers
+    Else
+        Set tLayers = ActivePage.Layers
+    End If
+    Set FindLayersActivePageByNamePart = New Collection
+    For Each tLayer In tLayers
+        If InStr(tLayer.Name, NamePart) > 0 Then _
+            FindLayersActivePageByNamePart.Add tLayer
+    Next
+End Function
+
+'найти дубликат слоя по ряду параметров (достовернее, чем поиск по имени)
+Public Function FindLayerDuplicate( _
+                    ByVal PageToSearch As Page, _
+                    ByVal SrcLayer As Layer _
+                ) As Layer
+    For Each FindLayerDuplicate In PageToSearch.AllLayers
+        With FindLayerDuplicate
+            If (.Name = SrcLayer.Name) And _
+                 (.IsDesktopLayer = SrcLayer.IsDesktopLayer) And _
+                 (.Master = SrcLayer.Master) And _
+                 (.Color.IsSame(SrcLayer.Color)) Then _
+                 Exit Function
+        End With
+    Next
+    Set FindLayerDuplicate = Nothing
+End Function
+
+Public Function GetAverageColor(ByVal Colors As Collection) As Color
+    If Colors.Count = 0 Then
+        VBA.Err.Raise CustomError, "lib_elvin", "No colors in colors collection"
+        Exit Function
+    End If
+    If Colors.Count = 1 Then
+        Set GetAverageColor = Colors(1).GetCopy
+        Exit Function
+    End If
+    Dim Index As Long
+    For Index = 1 To Colors.Count
+        Set GetAverageColor = _
+            GetMixedColor( _
+                GetAverageColor, _
+                Colors(Index), _
+                100 - (100 / Index) _
+            )
+    Next Index
+End Function
+
+Public Function GetAverageColorFromShapes( _
+                    ByVal Shapes As ShapeRange, _
+                    Optional ByVal Fills As Boolean = True, _
+                    Optional ByVal Outlines As Boolean = True _
+                ) As Color
+    On Error GoTo NoColor
+    Set GetAverageColorFromShapes = GetAverageColor( _
+        GetBoundColors( _
+            Shapes:=Shapes, _
+            Fills:=Fills, _
+            Outlines:=Outlines _
+        ) _
+    )
+NoColor:
+End Function
+
+Public Function GetBoundColors( _
+                    ByVal Shapes As ShapeRange, _
+                    Optional ByVal Fills As Boolean = True, _
+                    Optional ByVal Outlines As Boolean = True _
+                ) As Collection
+    Set GetBoundColors = New Collection
+    Dim Shape As Shape
+    For Each Shape In Shapes
+        If Fills Then _
+            AppendCollection GetBoundColors, GetBoundColorsFromFill(Shape)
+        If Outlines Then _
+            If Not Shape.Outline.Type = cdrNoOutline Then _
+                GetBoundColors.Add Shape.Outline.Color
+    Next Shape
+End Function
+
+Public Function GetBoundColorsFromFill( _
+                    ByVal Shape As Shape _
+                ) As Collection
+    Set GetBoundColorsFromFill = New Collection
+    With Shape.Fill
+        If Shape.Fill.Type = cdrUniformFill Then
+            GetBoundColorsFromFill.Add Shape.Fill.UniformColor
+        ElseIf Shape.Fill.Type = cdrFountainFill Then
+            AppendCollection GetBoundColorsFromFill, _
+                             GetBoundColorsFromFountain(Shape)
+        ElseIf Shape.Fill.Type = cdrPatternFill Then
+            If Shape.Fill.Pattern.Type = cdrTwoColorPattern Then
+                AppendCollection GetBoundColorsFromFill, _
+                                 GetBoundColorsFromTwoColorPattern(Shape)
+            End If
+        End If
+    End With
+End Function
+
+Public Function GetBoundColorsFromFountain( _
+                    ByVal Shape As Shape _
+                ) As Collection
+    Set GetBoundColorsFromFountain = New Collection
+    Dim FColor As FountainColor
+    For Each FColor In Shape.Fill.Fountain.Colors
+        GetBoundColorsFromFountain.Add FColor.Color
+    Next FColor
+End Function
+
+Public Function GetBoundColorsFromTwoColorPattern( _
+                     ByVal Shape As Shape _
+                 ) As Collection
+    Set GetBoundColorsFromTwoColorPattern = New Collection
+    GetBoundColorsFromTwoColorPattern.Add Shape.Fill.Pattern.FrontColor
+    GetBoundColorsFromTwoColorPattern.Add Shape.Fill.Pattern.BackColor
+End Function
+
+Public Function GetBottomOrderShape(ByVal Shapes As ShapeRange) As Shape
+    If Shapes.Count = 0 Then Exit Function
+    Set GetBottomOrderShape = Shapes(1)
+    If Shapes.Count = 1 Then Exit Function
+    Dim Index As Long
+    For Index = 2 To Shapes.Count
+        If Shapes(Index).ZOrder > GetBottomOrderShape.ZOrder Then
+            Set GetBottomOrderShape = Shapes(Index)
+        End If
+    Next Index
+End Function
+
+Public Function GetColorLightness(ByVal Color As Color) As Long
+    Dim GrayScale As Color
+    Set GrayScale = Color.GetCopy
+    GrayScale.ConvertToGray
+    GetColorLightness = GrayScale.Gray
+End Function
+
+Public Function GetHeightKeepProportions( _
+                    ByVal Rect As Rect, _
+                    ByVal Width As Double _
+                ) As Double
+    Dim WidthToHeight As Double
+    WidthToHeight = Rect.Width / Rect.Height
+    GetHeightKeepProportions = Width / WidthToHeight
+End Function
+
+Public Function GetMixedColor( _
+                    ByVal MaybeColor1 As Color, _
+                    ByVal MaybeColor2 As Color, _
+                    Optional ByVal MixRatio As Long = 50 _
+                ) As Color
+    If MaybeColor1 Is Nothing And MaybeColor2 Is Nothing Then Exit Function
+    If MaybeColor1 Is Nothing Then
+        Set GetMixedColor = MaybeColor2.GetCopy
+        Exit Function
+    ElseIf MaybeColor2 Is Nothing Then
+        Set GetMixedColor = MaybeColor1.GetCopy
+        Exit Function
+    End If
+    Set GetMixedColor = MaybeColor1.GetCopy
+    GetMixedColor.BlendWith MaybeColor2, MixRatio
+End Function
+
+Public Function GetTopOrderShape(ByVal Shapes As ShapeRange) As Shape
+    If Shapes.Count = 0 Then Exit Function
+    Set GetTopOrderShape = Shapes(1)
+    If Shapes.Count = 1 Then Exit Function
+    Dim Index As Long
+    For Index = 2 To Shapes.Count
+        If Shapes(Index).ZOrder < GetTopOrderShape.ZOrder Then
+            Set GetTopOrderShape = Shapes(Index)
+        End If
+    Next Index
+End Function
+
+Public Function GetWidthKeepProportions( _
+                    ByVal Rect As Rect, _
+                    ByVal Height As Double _
+                ) As Double
+    Dim WidthToHeight As Double
+    WidthToHeight = Rect.Width / Rect.Height
+    GetWidthKeepProportions = Height * WidthToHeight
+End Function
+
+'возвращает бОльшую сторону шейпа/рэйнджа/страницы
+Public Function GreaterDim(ByVal ShapeOrRangeOrPage As Object) As Double
+    If Not TypeOf ShapeOrRangeOrPage Is Shape And Not TypeOf ShapeOrRangeOrPage Is ShapeRange And Not TypeOf ShapeOrRangeOrPage Is Page Then
+        Err.Raise 13, Source:="GreaterDim", _
+                  Description:="Type mismatch: ShapeOrRangeOrPage должен быть Shape, ShapeRange или Page"
+        Exit Function
+    End If
+    If ShapeOrRangeOrPage.SizeWidth > ShapeOrRangeOrPage.SizeHeight Then
+        GreaterDim = ShapeOrRangeOrPage.SizeWidth
+    Else
+        GreaterDim = ShapeOrRangeOrPage.SizeHeight
+    End If
+End Function
+
+'является ли шейп/рэйндж/страница альбомным
+Public Function IsLandscape(ByVal ShapeOrRangeOrPage As Object) As Boolean
+    If Not TypeOf ShapeOrRangeOrPage Is Shape _
+   And Not TypeOf ShapeOrRangeOrPage Is ShapeRange _
+   And Not TypeOf ShapeOrRangeOrPage Is Page Then
+        Err.Raise 13, Source:="IsLandscape", _
+                  Description:="Type mismatch: ShapeOrRangeOrPage должен быть Shape, ShapeRange или Page"
+        Exit Function
+    End If
+    If ShapeOrRangeOrPage.SizeWidth > ShapeOrRangeOrPage.SizeHeight Then
+        IsLandscape = True
+    Else
+        IsLandscape = False
+    End If
+End Function
+
+'тестирует на пустой кореловский объект
+'для пустого объекта коллекции,
+'т. к. для Nothing ошибка может быть уже на этапе вызова
+Public Function IsNothing(ByVal Object As Object) As Boolean
+    Dim t As Variant
+    If Object Is Nothing Then GoTo ExitTrue
+    If TypeOf Object Is Document Then
+        On Error GoTo ExitTrue
+        t = Object.Name
+    ElseIf TypeOf Object Is Page Then
+        On Error GoTo ExitTrue
+        t = Object.Name
+    ElseIf TypeOf Object Is Layer Then
+        On Error GoTo ExitTrue
+        t = Object.Name
+    ElseIf TypeOf Object Is Shape Then
+        On Error GoTo ExitTrue
+        t = Object.Name
+    ElseIf TypeOf Object Is Curve Then
+        On Error GoTo ExitTrue
+        t = Object.Length
+    ElseIf TypeOf Object Is SubPath Then
+        On Error GoTo ExitTrue
+        t = Object.Closed
+    ElseIf TypeOf Object Is Segment Then
+        On Error GoTo ExitTrue
+        t = Object.AbsoluteIndex
+    ElseIf TypeOf Object Is Node Then
+        On Error GoTo ExitTrue
+        t = Object.AbsoluteIndex
+    End If
+    Exit Function
+ExitTrue:
+    IsNothing = True
+End Function
+
+'todo: ПРОВЕРИТЬ КАК СЛЕДУЕТ
+Public Function IsOverlap( _
+                    ByVal FirstShape As Shape, _
+                    ByVal SecondShape As Shape _
+                ) As Boolean
+    
+    Dim tIS As Shape
+    Dim tShape1 As Shape, tShape2 As Shape
+    Dim tBound1 As Shape, tBound2 As Shape
+    Dim tProps As typeLayerProps
+    
+    If FirstShape.Type = cdrConnectorShape _
+    Or SecondShape.Type = cdrConnectorShape Then _
+        Exit Function
+    
+    'запоминаем какой слой был активным
+    Dim tLayer As Layer: Set tLayer = ActiveLayer
+    'запоминаем состояние первого слоя
+    FirstShape.Layer.Activate
+    LayerPropsPreserveAndReset FirstShape.Layer, tProps
+    
+    If IsIntersectReady(FirstShape) Then
+        Set tShape1 = FirstShape
+    Else
+        Set tShape1 = CreateBoundary(FirstShape)
+        Set tBound1 = tShape1
+    End If
+    
+    If IsIntersectReady(SecondShape) Then
+        Set tShape2 = SecondShape
+    Else
+        Set tShape2 = CreateBoundary(SecondShape)
+        Set tBound2 = tShape2
+    End If
+    
+    Set tIS = tShape1.Intersect(tShape2)
+    If tIS Is Nothing Then
+        IsOverlap = False
+    Else
+        tIS.Delete
+        IsOverlap = True
+    End If
+    
+    On Error Resume Next
+        tBound1.Delete
+        tBound2.Delete
+    On Error GoTo 0
+    
+    'возвращаем всё на место
+    LayerPropsRestore FirstShape.Layer, tProps
+    tLayer.Activate
+
+End Function
+
+'IsOverlap здорового человека - меряет по габаритам,
+'но зато стабильно работает и в большинстве случаев его достаточно
+Public Function IsOverlapBox( _
+                    ByVal FirstShape As Shape, _
+                    ByVal SecondShape As Shape _
+                ) As Boolean
+    Dim tShape As Shape
+    Dim tProps As typeLayerProps
+    'запоминаем какой слой был активным
+    Dim tLayer As Layer: Set tLayer = ActiveLayer
+    'запоминаем состояние первого слоя
+    FirstShape.Layer.Activate
+    LayerPropsPreserveAndReset FirstShape.Layer, tProps
+    Dim tRect As Rect
+    Set tRect = FirstShape.BoundingBox.Intersect(SecondShape.BoundingBox)
+    If tRect.Width = 0 And tRect.Height = 0 Then
+        IsOverlapBox = False
+    Else
+        IsOverlapBox = True
+    End If
+    'возвращаем всё на место
+    LayerPropsRestore FirstShape.Layer, tProps
+    tLayer.Activate
+End Function
+
+'являются ли кривые дубликатами, находящимися друг над другом в одном месте
+'(underlying dubs)
+Public Function IsSameCurves( _
+                    ByVal Curve1 As Curve, _
+                    ByVal Curve2 As Curve _
+                ) As Boolean
+    Dim tNode As Node
+    Dim Tolerance As Double
+    'допуск = 0.001 мм
+    Tolerance = ConvertUnits(0.001, cdrMillimeter, ActiveDocument.Unit)
+    IsSameCurves = False
+    If Not Curve1.Nodes.Count = Curve2.Nodes.Count Then Exit Function
+    If Abs(Curve1.Length - Curve2.Length) > Tolerance Then Exit Function
+    For Each tNode In Curve1.Nodes
+        If Curve2.FindNodeAtPoint( _
+               tNode.PositionX, _
+               tNode.PositionY, _
+               Tolerance * 2 _
+           ) Is Nothing Then Exit Function
+    Next
+    IsSameCurves = True
+End Function
+
+'возвращает меньшую сторону шейпа/рэйнджа/страницы
+Public Function LesserDim(ByVal ShapeOrRangeOrPage As Object) As Double
+    If Not TypeOf ShapeOrRangeOrPage Is Shape _
+   And Not TypeOf ShapeOrRangeOrPage Is ShapeRange _
+   And Not TypeOf ShapeOrRangeOrPage Is Page Then
+        Err.Raise 13, Source:="LesserDim", _
+                  Description:="Type mismatch: ShapeOrRangeOrPage должен быть Shape, ShapeRange или Page"
+        Exit Function
+    End If
+    If ShapeOrRangeOrPage.SizeWidth < ShapeOrRangeOrPage.SizeHeight Then
+        LesserDim = ShapeOrRangeOrPage.SizeWidth
+    Else
+        LesserDim = ShapeOrRangeOrPage.SizeHeight
+    End If
+End Function
+
+Public Function ShapeHasCurve(ByVal Shape As Shape) As Boolean
+    On Error GoTo Fail
+    ShapeHasCurve = Not (Shape.Curve Is Nothing)
+Fail:
+End Function
+
+Public Function ShapeHasOutline(ByVal Shape As Shape) As Boolean
+    On Error GoTo Fail
+    ShapeHasOutline = Not (Shape.Outline.Type = cdrNoOutline)
+Fail:
+End Function
+
+Public Function ShapeHasUniformFill(ByVal Shape As Shape) As Boolean
+    On Error GoTo Fail
+    ShapeHasUniformFill = (Shape.Fill.Type = cdrUniformFill)
+Fail:
+End Function
+
+Public Function ShapeIsInGroup(ByVal Shape As Shape) As Boolean
+    On Error GoTo Fail
+    ShapeIsInGroup = Not (Shape.ParentGroup Is Nothing)
+Fail:
+End Function
+
+'возвращает коллекцию слоёв, на которых лежат шейпы из ренджа
+Public Function ShapeRangeLayers(ByVal ShapeRange As ShapeRange) As Collection
+    
+    Dim tShape As Shape
+    Dim tLayer As Layer
+    Dim inCol As Boolean
+    
+    If ShapeRange.Count = 0 Then Exit Function
+    Set ShapeRangeLayers = New Collection
+    If ShapeRange.Count = 1 Then
+        ShapeRangeLayers.Add ShapeRange(1).Layer
+        Exit Function
+    End If
+    
+    For Each tShape In ShapeRange
+        inCol = False
+        For Each tLayer In ShapeRangeLayers
+            If tLayer Is tShape.Layer Then
+                inCol = True
+                Exit For
+            End If
+        Next tLayer
+        If inCol = False Then ShapeRangeLayers.Add tShape.Layer
+    Next tShape
+
+End Function
+
+'возвращает Rect, равный габаритам объекта плюс Space со всех сторон
+Public Function SpaceBox(ByVal ShapeOrRange As Object, Space#) As Rect
+    If Not TypeOf ShapeOrRange Is Shape _
+   And Not TypeOf ShapeOrRange Is ShapeRange Then
+        Err.Raise 13, Source:="SpaceBox", _
+                  Description:="Type mismatch: ShapeOrRange должен быть Shape или ShapeRange"
+        Exit Function
+    End If
+    Set SpaceBox = ShapeOrRange.BoundingBox.GetCopy
+    SpaceBox.Inflate Space, Space, Space, Space
+End Function
+
 '===============================================================================
+' # функции манипуляций с объектами корела
+
+Public Function BreakApart(ByVal Shape As Shape) As ShapeRange
+    If Shape.Curve.SubPaths.Count < 2 Then
+        Set BreakApart = CreateShapeRange
+        BreakApart.Add Shape
+        Exit Function
+    End If
+    Set BreakApart = Shape.BreakApartEx
+    If BreakApart.Count > 1 Then Exit Function
+    Set BreakApart = CreateShapeRange
+    Dim RemainingShape As Shape
+    Dim ExtractedShape As Shape
+    'RemainingShape и ExtractedShape в Extract
+    'на самом деле наоборот, чем в спеках
+    Set RemainingShape = Shape.Curve.SubPaths.First.Extract(ExtractedShape)
+    BreakApart.Add ExtractedShape
+    BreakApart.AddRange BreakApart(RemainingShape)
+End Function
 
 'перекрашивает объект в чёрный или белый в серой шкале,
 'в зависимости от исходного цвета
@@ -453,469 +1029,7 @@ Public Function WeldShapes(ByVal Shapes As ShapeRange) As Shape
 End Function
 
 '===============================================================================
-' функции поиска и получения информации об объектах корела
-'===============================================================================
-
-'возвращает среднее сторон шейпа/рэйнджа/страницы
-Public Function AverageDim(ByVal ShapeOrRangeOrPage As Object) As Double
-    If Not TypeOf ShapeOrRangeOrPage Is Shape _
-   And Not TypeOf ShapeOrRangeOrPage Is ShapeRange _
-   And Not TypeOf ShapeOrRangeOrPage Is Page Then
-        Err.Raise 13, Source:="AverageDim", _
-                  Description:="Type mismatch: ShapeOrRangeOrPage должен быть Shape, ShapeRange или Page"
-        Exit Function
-    End If
-    AverageDim = (ShapeOrRangeOrPage.SizeWidth + ShapeOrRangeOrPage.SizeHeight) _
-               / 2
-End Function
-
-'находит все шейпы с данным именем, включая шейпы в поверклипах, с рекурсией
-Public Function FindShapesByName( _
-                    ByVal ShapeRange As ShapeRange, _
-                    ByVal Name As String _
-                ) As ShapeRange
-    Set FindShapesByName = FindAllShapes(ShapeRange).Shapes.FindShapes(Name)
-End Function
-
-'находит все шейпы, часть имени которых совпадает с NamePart,
-'включая шейпы в поверклипах, с рекурсией
-Public Function FindShapesByNamePart( _
-                    ByVal ShapeRange As ShapeRange, _
-                    ByVal NamePart As String _
-                ) As ShapeRange
-    Set FindShapesByNamePart = FindAllShapes(ShapeRange).Shapes.FindShapes( _
-                                   Query:="@Name.Contains('" & NamePart & "')" _
-                               )
-End Function
-
-'находит поверклипы, без рекурсии
-Public Function FindPowerClips(ByVal ShapeRange As ShapeRange) As ShapeRange
-    Set FindPowerClips = CreateShapeRange
-    'On Error Resume Next
-    'FindPowerClips.AddRange ShapeRange.Shapes.FindShapes(Query:="!@com.PowerClip.IsNull")
-    Dim Shape As Shape
-    For Each Shape In ShapeRange
-        If Not lib_elvin.IsNothing(Shape) Then _
-            If Not Shape.PowerClip Is Nothing Then FindPowerClips.Add Shape
-    Next Shape
-End Function
-
-'находит содержимое поверклипов, без рекурсии
-Public Function FindShapesInPowerClips(ByVal ShapeRange As ShapeRange) As ShapeRange
-    Dim tShape As Shape
-    Set FindShapesInPowerClips = CreateShapeRange
-    For Each tShape In FindPowerClips(ShapeRange)
-        FindShapesInPowerClips.AddRange tShape.PowerClip.Shapes.All
-    Next tShape
-End Function
-
-'находит все шейпы, включая шейпы в поверклипах, с рекурсией
-Public Function FindAllShapes(ByVal ShapeRange As ShapeRange) As ShapeRange
-    Dim tShape As Shape
-    Set FindAllShapes = CreateShapeRange
-    FindAllShapes.AddRange ShapeRange.Shapes.FindShapes
-    For Each tShape In FindPowerClips(ShapeRange)
-        FindAllShapes.AddRange FindAllShapes(tShape.PowerClip.Shapes.All)
-    Next tShape
-End Function
-
-'возвращает все шейпы на всех слоях текущей страницы, по умолчанию - без мастер-слоёв и без гайдов
-Public Function FindShapesActivePageLayers( _
-                    Optional ByVal GuidesLayers As Boolean, _
-                    Optional ByVal MasterLayers As Boolean _
-                ) As ShapeRange
-    Dim tLayer As Layer
-    Set FindShapesActivePageLayers = CreateShapeRange
-    For Each tLayer In ActivePage.Layers
-        If Not (tLayer.IsGuidesLayer And (GuidesLayers = False)) Then _
-            FindShapesActivePageLayers.AddRange tLayer.Shapes.All
-    Next
-    If MasterLayers Then
-        For Each tLayer In ActiveDocument.MasterPage.Layers
-            If Not (tLayer.IsGuidesLayer And (GuidesLayers = False)) Then _
-                FindShapesActivePageLayers.AddRange tLayer.Shapes.All
-    Next
-    End If
-End Function
-
-'возвращает коллекцию слоёв с текущей страницы, имена которых включают NamePart
-Public Function FindLayersActivePageByNamePart( _
-                    ByVal NamePart As String, _
-                    Optional ByVal SearchMasters = True _
-                ) As Collection
-    Dim tLayer As Layer
-    Dim tLayers As Layers
-    If SearchMasters Then
-        Set tLayers = ActivePage.AllLayers
-    Else
-        Set tLayers = ActivePage.Layers
-    End If
-    Set FindLayersActivePageByNamePart = New Collection
-    For Each tLayer In tLayers
-        If InStr(tLayer.Name, NamePart) > 0 Then _
-            FindLayersActivePageByNamePart.Add tLayer
-    Next
-End Function
-
-'найти дубликат слоя по ряду параметров (достовернее, чем поиск по имени)
-Public Function FindLayerDuplicate( _
-                    ByVal PageToSearch As Page, _
-                    ByVal SrcLayer As Layer _
-                ) As Layer
-    For Each FindLayerDuplicate In PageToSearch.AllLayers
-        With FindLayerDuplicate
-            If (.Name = SrcLayer.Name) And _
-                 (.IsDesktopLayer = SrcLayer.IsDesktopLayer) And _
-                 (.Master = SrcLayer.Master) And _
-                 (.Color.IsSame(SrcLayer.Color)) Then _
-                 Exit Function
-        End With
-    Next
-    Set FindLayerDuplicate = Nothing
-End Function
-
-Public Function GetAverageColorFromFountain( _
-                     ByVal Fountain As FountainColors _
-                 ) As Color
-    Dim Index As Long
-    For Index = 1 To Fountain.Count
-        Set GetAverageColorFromFountain = _
-            GetMixedColor( _
-                GetAverageColorFromFountain, _
-                Fountain(Index).Color, _
-                100 - (100 / Index) _
-            )
-    Next Index
-End Function
-
-Public Function GetAverageColorFromShapeFill(ByVal Shape As Shape) As Color
-    With Shape.Fill
-        If Shape.Fill.Type = cdrUniformFill Then
-            Set GetAverageColorFromShapeFill = Shape.Fill.UniformColor.GetCopy
-        ElseIf Shape.Fill.Type = cdrFountainFill Then
-            Set GetAverageColorFromShapeFill = _
-                GetAverageColorFromFountain(Shape.Fill.Fountain.Colors)
-        ElseIf Shape.Fill.Type = cdrPatternFill Then
-            If Shape.Fill.Pattern.Type = cdrTwoColorPattern Then
-                Set GetAverageColorFromShapeFill = _
-                    GetAverageColorFromTwoColorPattern(Shape.Fill.Pattern)
-            End If
-        End If
-    End With
-End Function
-
-Public Function GetAverageColorFromShapesFill(ByVal Shapes As ShapeRange) As Color
-
-    If Shapes.Count = 1 Then
-        Set GetAverageColorFromShapesFill = _
-            GetAverageColorFromShapeFill(Shapes.FirstShape)
-        Exit Function
-    End If
-        
-    Dim Index As Long
-    For Index = 1 To Shapes.Count
-        Set GetAverageColorFromShapesFill = _
-            GetMixedColor( _
-                GetAverageColorFromShapesFill, _
-                GetAverageColorFromShapeFill(Shapes(Index)), _
-                100 - (100 / Index) _
-            )
-    Next Index
-    
-End Function
-
-Public Function GetAverageColorFromTwoColorPattern( _
-                     ByVal Pattern As PatternFill _
-                 ) As Color
-    Set GetAverageColorFromTwoColorPattern = _
-        GetMixedColor(Pattern.FrontColor, Pattern.BackColor, 50)
-End Function
-
-Public Function GetBottomOrderShape(ByVal Shapes As ShapeRange) As Shape
-    If Shapes.Count = 0 Then Exit Function
-    Set GetBottomOrderShape = Shapes(1)
-    If Shapes.Count = 1 Then Exit Function
-    Dim Index As Long
-    For Index = 2 To Shapes.Count
-        If Shapes(Index).ZOrder > GetBottomOrderShape.ZOrder Then
-            Set GetBottomOrderShape = Shapes(Index)
-        End If
-    Next Index
-End Function
-
-Public Function GetHeightKeepProportions( _
-                    ByVal Rect As Rect, _
-                    ByVal Width As Double _
-                ) As Double
-    Dim WidthToHeight As Double
-    WidthToHeight = Rect.Width / Rect.Height
-    GetHeightKeepProportions = Width / WidthToHeight
-End Function
-
-Public Function GetMixedColor( _
-                    ByVal Color1 As Color, _
-                    ByVal Color2 As Color, _
-                    Optional ByVal MixRatio As Long = 50 _
-                ) As Color
-    If Color1 Is Nothing And Color2 Is Nothing Then Exit Function
-    If Color1 Is Nothing Then
-        Set GetMixedColor = Color2.GetCopy
-        Exit Function
-    ElseIf Color2 Is Nothing Then
-        Set GetMixedColor = Color1.GetCopy
-        Exit Function
-    End If
-    Set GetMixedColor = Color1.GetCopy
-    GetMixedColor.BlendWith Color2, MixRatio
-End Function
-
-Public Function GetTopOrderShape(ByVal Shapes As ShapeRange) As Shape
-    If Shapes.Count = 0 Then Exit Function
-    Set GetTopOrderShape = Shapes(1)
-    If Shapes.Count = 1 Then Exit Function
-    Dim Index As Long
-    For Index = 2 To Shapes.Count
-        If Shapes(Index).ZOrder < GetTopOrderShape.ZOrder Then
-            Set GetTopOrderShape = Shapes(Index)
-        End If
-    Next Index
-End Function
-
-Public Function GetWidthKeepProportions( _
-                    ByVal Rect As Rect, _
-                    ByVal Height As Double _
-                ) As Double
-    Dim WidthToHeight As Double
-    WidthToHeight = Rect.Width / Rect.Height
-    GetWidthKeepProportions = Height * WidthToHeight
-End Function
-
-'возвращает бОльшую сторону шейпа/рэйнджа/страницы
-Public Function GreaterDim(ByVal ShapeOrRangeOrPage As Object) As Double
-    If Not TypeOf ShapeOrRangeOrPage Is Shape And Not TypeOf ShapeOrRangeOrPage Is ShapeRange And Not TypeOf ShapeOrRangeOrPage Is Page Then
-        Err.Raise 13, Source:="GreaterDim", _
-                  Description:="Type mismatch: ShapeOrRangeOrPage должен быть Shape, ShapeRange или Page"
-        Exit Function
-    End If
-    If ShapeOrRangeOrPage.SizeWidth > ShapeOrRangeOrPage.SizeHeight Then
-        GreaterDim = ShapeOrRangeOrPage.SizeWidth
-    Else
-        GreaterDim = ShapeOrRangeOrPage.SizeHeight
-    End If
-End Function
-
-'является ли шейп/рэйндж/страница альбомным
-Public Function IsLandscape(ByVal ShapeOrRangeOrPage As Object) As Boolean
-    If Not TypeOf ShapeOrRangeOrPage Is Shape _
-   And Not TypeOf ShapeOrRangeOrPage Is ShapeRange _
-   And Not TypeOf ShapeOrRangeOrPage Is Page Then
-        Err.Raise 13, Source:="IsLandscape", _
-                  Description:="Type mismatch: ShapeOrRangeOrPage должен быть Shape, ShapeRange или Page"
-        Exit Function
-    End If
-    If ShapeOrRangeOrPage.SizeWidth > ShapeOrRangeOrPage.SizeHeight Then
-        IsLandscape = True
-    Else
-        IsLandscape = False
-    End If
-End Function
-
-'тестирует на пустой кореловский объект
-'для пустого объекта коллекции,
-'т. к. для Nothing ошибка может быть уже на этапе вызова
-Public Function IsNothing(ByVal Object As Object) As Boolean
-    Dim t As Variant
-    If Object Is Nothing Then GoTo ExitTrue
-    If TypeOf Object Is Document Then
-        On Error GoTo ExitTrue
-        t = Object.Name
-    ElseIf TypeOf Object Is Page Then
-        On Error GoTo ExitTrue
-        t = Object.Name
-    ElseIf TypeOf Object Is Layer Then
-        On Error GoTo ExitTrue
-        t = Object.Name
-    ElseIf TypeOf Object Is Shape Then
-        On Error GoTo ExitTrue
-        t = Object.Name
-    ElseIf TypeOf Object Is Curve Then
-        On Error GoTo ExitTrue
-        t = Object.Length
-    ElseIf TypeOf Object Is SubPath Then
-        On Error GoTo ExitTrue
-        t = Object.Closed
-    ElseIf TypeOf Object Is Segment Then
-        On Error GoTo ExitTrue
-        t = Object.AbsoluteIndex
-    ElseIf TypeOf Object Is Node Then
-        On Error GoTo ExitTrue
-        t = Object.AbsoluteIndex
-    End If
-    Exit Function
-ExitTrue:
-    IsNothing = True
-End Function
-
-'todo: ПРОВЕРИТЬ КАК СЛЕДУЕТ
-Public Function IsOverlap( _
-                    ByVal FirstShape As Shape, _
-                    ByVal SecondShape As Shape _
-                ) As Boolean
-    
-    Dim tIS As Shape
-    Dim tShape1 As Shape, tShape2 As Shape
-    Dim tBound1 As Shape, tBound2 As Shape
-    Dim tProps As typeLayerProps
-    
-    If FirstShape.Type = cdrConnectorShape _
-    Or SecondShape.Type = cdrConnectorShape Then _
-        Exit Function
-    
-    'запоминаем какой слой был активным
-    Dim tLayer As Layer: Set tLayer = ActiveLayer
-    'запоминаем состояние первого слоя
-    FirstShape.Layer.Activate
-    LayerPropsPreserveAndReset FirstShape.Layer, tProps
-    
-    If IsIntersectReady(FirstShape) Then
-        Set tShape1 = FirstShape
-    Else
-        Set tShape1 = CreateBoundary(FirstShape)
-        Set tBound1 = tShape1
-    End If
-    
-    If IsIntersectReady(SecondShape) Then
-        Set tShape2 = SecondShape
-    Else
-        Set tShape2 = CreateBoundary(SecondShape)
-        Set tBound2 = tShape2
-    End If
-    
-    Set tIS = tShape1.Intersect(tShape2)
-    If tIS Is Nothing Then
-        IsOverlap = False
-    Else
-        tIS.Delete
-        IsOverlap = True
-    End If
-    
-    On Error Resume Next
-        tBound1.Delete
-        tBound2.Delete
-    On Error GoTo 0
-    
-    'возвращаем всё на место
-    LayerPropsRestore FirstShape.Layer, tProps
-    tLayer.Activate
-
-End Function
-
-'IsOverlap здорового человека - меряет по габаритам,
-'но зато стабильно работает и в большинстве случаев его достаточно
-Public Function IsOverlapBox( _
-                    ByVal FirstShape As Shape, _
-                    ByVal SecondShape As Shape _
-                ) As Boolean
-    Dim tShape As Shape
-    Dim tProps As typeLayerProps
-    'запоминаем какой слой был активным
-    Dim tLayer As Layer: Set tLayer = ActiveLayer
-    'запоминаем состояние первого слоя
-    FirstShape.Layer.Activate
-    LayerPropsPreserveAndReset FirstShape.Layer, tProps
-    Dim tRect As Rect
-    Set tRect = FirstShape.BoundingBox.Intersect(SecondShape.BoundingBox)
-    If tRect.Width = 0 And tRect.Height = 0 Then
-        IsOverlapBox = False
-    Else
-        IsOverlapBox = True
-    End If
-    'возвращаем всё на место
-    LayerPropsRestore FirstShape.Layer, tProps
-    tLayer.Activate
-End Function
-
-'являются ли кривые дубликатами, находящимися друг над другом в одном месте
-'(underlying dubs)
-Public Function IsSameCurves( _
-                    ByVal Curve1 As Curve, _
-                    ByVal Curve2 As Curve _
-                ) As Boolean
-    Dim tNode As Node
-    Dim Tolerance As Double
-    'допуск = 0.001 мм
-    Tolerance = ConvertUnits(0.001, cdrMillimeter, ActiveDocument.Unit)
-    IsSameCurves = False
-    If Not Curve1.Nodes.Count = Curve2.Nodes.Count Then Exit Function
-    If Abs(Curve1.Length - Curve2.Length) > Tolerance Then Exit Function
-    For Each tNode In Curve1.Nodes
-        If Curve2.FindNodeAtPoint( _
-               tNode.PositionX, _
-               tNode.PositionY, _
-               Tolerance * 2 _
-           ) Is Nothing Then Exit Function
-    Next
-    IsSameCurves = True
-End Function
-
-'возвращает меньшую сторону шейпа/рэйнджа/страницы
-Public Function LesserDim(ByVal ShapeOrRangeOrPage As Object) As Double
-    If Not TypeOf ShapeOrRangeOrPage Is Shape _
-   And Not TypeOf ShapeOrRangeOrPage Is ShapeRange _
-   And Not TypeOf ShapeOrRangeOrPage Is Page Then
-        Err.Raise 13, Source:="LesserDim", _
-                  Description:="Type mismatch: ShapeOrRangeOrPage должен быть Shape, ShapeRange или Page"
-        Exit Function
-    End If
-    If ShapeOrRangeOrPage.SizeWidth < ShapeOrRangeOrPage.SizeHeight Then
-        LesserDim = ShapeOrRangeOrPage.SizeWidth
-    Else
-        LesserDim = ShapeOrRangeOrPage.SizeHeight
-    End If
-End Function
-
-'возвращает коллекцию слоёв, на которых лежат шейпы из ренджа
-Public Function ShapeRangeLayers(ByVal ShapeRange As ShapeRange) As Collection
-    
-    Dim tShape As Shape
-    Dim tLayer As Layer
-    Dim inCol As Boolean
-    
-    If ShapeRange.Count = 0 Then Exit Function
-    Set ShapeRangeLayers = New Collection
-    If ShapeRange.Count = 1 Then
-        ShapeRangeLayers.Add ShapeRange(1).Layer
-        Exit Function
-    End If
-    
-    For Each tShape In ShapeRange
-        inCol = False
-        For Each tLayer In ShapeRangeLayers
-            If tLayer Is tShape.Layer Then
-                inCol = True
-                Exit For
-            End If
-        Next tLayer
-        If inCol = False Then ShapeRangeLayers.Add tShape.Layer
-    Next tShape
-
-End Function
-
-'возвращает Rect, равный габаритам объекта плюс Space со всех сторон
-Public Function SpaceBox(ByVal ShapeOrRange As Object, Space#) As Rect
-    If Not TypeOf ShapeOrRange Is Shape _
-   And Not TypeOf ShapeOrRange Is ShapeRange Then
-        Err.Raise 13, Source:="SpaceBox", _
-                  Description:="Type mismatch: ShapeOrRange должен быть Shape или ShapeRange"
-        Exit Function
-    End If
-    Set SpaceBox = ShapeOrRange.BoundingBox.GetCopy
-    SpaceBox.Inflate Space, Space, Space, Space
-End Function
-
-'===============================================================================
-' функции работы с файлами
-'===============================================================================
+' # функции работы с файлами
 
 'находит временную папку
 Public Function GetTempFolder() As String
@@ -1092,24 +1206,24 @@ Err_Handler:
 End Function
 
 '===============================================================================
-' прочие функции
-'===============================================================================
+' # прочие функции
 
-Public Sub AssignUnknown(ByRef Destination As Variant, ByRef Value As Variant)
+Public Sub AppendCollection( _
+               ByVal Destination As Collection, _
+               ByVal SourceToAdd As Collection _
+           )
+    Dim Item As Variant
+    For Each Item In SourceToAdd
+        Destination.Add Item
+    Next Item
+End Sub
+
+Public Sub Assign(ByRef Destination As Variant, ByRef Value As Variant)
     If VBA.IsObject(Value) Then
         Set Destination = Value
     Else
         Destination = Value
     End If
-End Sub
-
-'устарело
-Public Sub CopyCollection(ByVal Source As Collection, _
-                                                    ByVal Target As Collection)
-    Dim Element As Variant
-    For Each Element In Source
-        Target.Add Element
-    Next Element
 End Sub
 
 Public Function GetCollectionCopy(ByVal Source As Collection) As Collection
@@ -1288,7 +1402,6 @@ End Function
 
 '===============================================================================
 ' # приватные функции модуля
-'===============================================================================
 
 Private Sub LayerPropsPreserve(ByVal L As Layer, ByRef Props As typeLayerProps)
     With Props

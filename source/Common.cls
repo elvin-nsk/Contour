@@ -165,7 +165,9 @@ Public Sub AverageFill( _
            )
     If SourceShape.Type = cdrGroupShape Then
         TargetShape.Fill.ApplyUniformFill _
-            lib_elvin.GetAverageColorFromShapesFill(SourceShape.Shapes.All)
+            lib_elvin.GetAverageColorFromShapes( _
+                Shapes:=SourceShape.Shapes.All, Fills:=True, Outlines:=False _
+            )
     Else
         TargetShape.Fill.CopyAssign SourceShape.Fill
     End If

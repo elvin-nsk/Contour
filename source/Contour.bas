@@ -1,7 +1,7 @@
 Attribute VB_Name = "Contour"
 '===============================================================================
 '   Макрос          : Contour
-'   Версия          : 2022.06.07
+'   Версия          : 2022.08.03
 '   Сайты           : https://vk.com/elvin_macro/Contour
 '                     https://github.com/elvin-nsk
 '   Автор           : elvin-nsk (me@elvin.nsk.ru)
@@ -143,7 +143,9 @@ Private Sub Main( _
     If Cfg.OptionSourceAsOne Then
         If Cfg.OptionMatchColor Then
             Set AverageColor = _
-                lib_elvin.GetAverageColorFromShapesFill(Contours)
+                lib_elvin.GetAverageColorFromShapes( _
+                    Shapes:=Contours, Fills:=True, Outlines:=False _
+                )
         End If
         Set Shape = lib_elvin.WeldShapes(Contours)
         If AverageColor Is Nothing Then
