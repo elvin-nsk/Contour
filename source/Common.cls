@@ -34,7 +34,7 @@ Public Function TraceBitmap( _
         Set ShapeToProcess = ShapeToProcess.ConvertToBitmapEx( _
             BitmapShape.Bitmap.Mode, , _
             BitmapShape.Bitmap.Transparent, _
-            ReduceBitmapSize / (lib_elvin.GreaterDim(BitmapShape) / MmInInch) _
+            ReduceBitmapSize / (LibCore.GreaterDim(BitmapShape) / MmInInch) _
         )
     Else
         Set ShapeToProcess = BitmapShape
@@ -132,7 +132,7 @@ Public Function Contour( _
     ElseIf Offset < 0 Then
         Direction = cdrContourInside
     ElseIf Offset = 0 Then
-        Set Contour = lib_elvin.CreateBoundary(Shape)
+        Set Contour = LibCore.CreateBoundary(Shape)
         Exit Function
     End If
     
@@ -165,7 +165,7 @@ Public Sub AverageFill( _
            )
     If SourceShape.Type = cdrGroupShape Then
         TargetShape.Fill.ApplyUniformFill _
-            lib_elvin.GetAverageColorFromShapes( _
+            LibCore.GetAverageColorFromShapes( _
                 Shapes:=SourceShape.Shapes.All, Fills:=True, Outlines:=False _
             )
     Else

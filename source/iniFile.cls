@@ -323,7 +323,7 @@ Private Function sManageSectionEntry( _
                        )
 
         ' Trim the excess garbage that comes through with the variable.
-        sReturnValue = Trim(Left(sRetBuf, sReturnValue))
+        sReturnValue = VBA.Trim(Left(sRetBuf, sReturnValue))
 
         ' If we get a value returned, pass it back as the argument.
         ' Else pass "False".

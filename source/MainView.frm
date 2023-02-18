@@ -1,9 +1,9 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} MainView 
-   ClientHeight    =   6600
+   ClientHeight    =   6150
    ClientLeft      =   45
    ClientTop       =   390
-   ClientWidth     =   8040
+   ClientWidth     =   6495
    OleObjectBlob   =   "MainView.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -25,6 +25,8 @@ Public FillColor As Color
 Public OffsetHandler As TextBoxHandler
 Public OutlineWidthHandler As TextBoxHandler
 Public NameHandler As TextBoxHandler
+
+Private Const MIN_OFFSET As Double = 0.025
 
 '===============================================================================
 
@@ -69,6 +71,16 @@ End Sub
 
 Private Sub OptionResultBelow_Click()
     OptionResultAbove = Not OptionResultBelow
+End Sub
+
+Private Sub TextBoxOffset_AfterUpdate()
+    If TextBoxOffset.Value < 0.025 And TextBoxOffset.Value > -0.025 Then
+        If TextBoxOffset.Value < 0 Then
+            TextBoxOffset.Value = VBA.CStr(-MIN_OFFSET)
+        Else
+            TextBoxOffset.Value = VBA.CStr(MIN_OFFSET)
+        End If
+    End If
 End Sub
 
 Private Sub TextBoxOffset_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)

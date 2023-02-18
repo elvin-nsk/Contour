@@ -1,7 +1,7 @@
 Attribute VB_Name = "Contour"
 '===============================================================================
 '   Макрос          : Contour
-'   Версия          : 2022.08.03
+'   Версия          : 2022.02.18
 '   Сайты           : https://vk.com/elvin_macro/Contour
 '                     https://github.com/elvin-nsk
 '   Автор           : elvin-nsk (me@elvin.nsk.ru)
@@ -45,14 +45,14 @@ Sub Start()
     Set Cfg = Config.Load
     If Not ShowViewAndGetResult(Cfg) Then GoTo Finally
     
-    lib_elvin.BoostStart APP_NAME, RELEASE
+    LibCore.BoostStart APP_NAME, RELEASE
     
     Main Source, Cfg
     
     Source.CreateSelection
 
 Finally:
-    lib_elvin.BoostFinish
+    LibCore.BoostFinish
     Set Cfg = Nothing
     Set LocalizedStrings = Nothing
     Exit Sub
@@ -143,11 +143,11 @@ Private Sub Main( _
     If Cfg.OptionSourceAsOne Then
         If Cfg.OptionMatchColor Then
             Set AverageColor = _
-                lib_elvin.GetAverageColorFromShapes( _
+                LibCore.GetAverageColorFromShapes( _
                     Shapes:=Contours, Fills:=True, Outlines:=False _
                 )
         End If
-        Set Shape = lib_elvin.WeldShapes(Contours)
+        Set Shape = LibCore.Weld(Contours)
         If AverageColor Is Nothing Then
             Shape.Fill.ApplyNoFill
         Else
@@ -166,7 +166,7 @@ Private Sub Main( _
         End If
         NameAndOrderShape Shape, Shapes, Cfg
     ElseIf Cfg.OptionResultAsLayer Then
-        lib_elvin.MoveToLayer _
+        LibCore.MoveToLayer _
             Contours, _
             Common.GetContourLayer(Cfg.Name, Cfg.OptionResultAbove)
     End If
@@ -267,9 +267,9 @@ Private Sub OrderShapeOrShapes( _
                 ByVal Cfg As Config _
             )
     If Cfg.OptionResultAbove Then
-        ShapeOrShapes.OrderFrontOf lib_elvin.GetTopOrderShape(SourceShapes)
+        ShapeOrShapes.OrderFrontOf LibCore.GetTopOrderShape(SourceShapes)
     Else
-        ShapeOrShapes.OrderBackOf lib_elvin.GetBottomOrderShape(SourceShapes)
+        ShapeOrShapes.OrderBackOf LibCore.GetBottomOrderShape(SourceShapes)
     End If
 End Sub
 
@@ -366,3 +366,4 @@ End Sub
 Private Sub testZOrder()
     GetBottomOrderShape(ActiveSelectionRange).CreateSelection
 End Sub
+
