@@ -42,6 +42,11 @@ Private Sub Class_Initialize()
         .Add "MainView.OptionTrace", "Трассировать растр"
         .Add "MainView.OptionRoundCorners", "Сглаживать"
         
+        .Add "MainView.OptionSecondaryContour", "Второй контур"
+        .Add "MainView.LabelOffset2", "Отступ"
+        .Add "MainView.LabelOffsetUnits2", "мм"
+        .Add "MainView.OptionRoundCorners2", "Сглаживать"
+        
         .Add "MainView.FrameSource", "Обрабатывать выделенное"
         .Add "MainView.OptionSourceAsOne", "как единый объект"
         .Add "MainView.OptionSourceAsIs", "каждый объект отдельно"

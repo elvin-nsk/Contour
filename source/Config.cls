@@ -32,6 +32,10 @@ Public FillColor As String
 Public OptionTrace As Boolean
 Public OptionRoundCorners As Boolean
 
+Public OptionSecondaryContour As Boolean
+Public Offset2 As Double
+Public OptionRoundCorners2 As Boolean
+
 Public OptionSourceAsOne As Boolean
 Public OptionSourceAsIs As Boolean
 Public OptionSourceWithinGroups As Boolean
@@ -62,6 +66,11 @@ Private Sub Assign(ByVal Action As iniAction)
         .KeyVar "FillColor", FillColor, "CMYK,USER,0,0,0,0"
         .KeyVar "OptionTrace", OptionTrace, True
         .KeyVar "OptionRoundCorners", OptionRoundCorners, True
+        
+        .Section = "Contour2"
+        .KeyVar "OptionEnabled", OptionSecondaryContour, False
+        .KeyVar "Offset", Offset2, 3#
+        .KeyVar "OptionRoundCorners", OptionRoundCorners2, True
         
         .Section = "Source"
         .KeyVar "OptionSourceAsOne", OptionSourceAsOne, False

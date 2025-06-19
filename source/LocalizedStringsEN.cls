@@ -42,6 +42,11 @@ Private Sub Class_Initialize()
         .Add "MainView.OptionTrace", "Trace bitmaps"
         .Add "MainView.OptionRoundCorners", "Smoothen"
         
+        .Add "MainView.OptionSecondaryContour", "Secondary contour"
+        .Add "MainView.LabelOffset2", "Offset"
+        .Add "MainView.LabelOffsetUnits2", "mm"
+        .Add "MainView.OptionRoundCorners2", "Smoothen"
+        
         .Add "MainView.FrameSource", "Process selection"
         .Add "MainView.OptionSourceAsOne", "as one shape"
         .Add "MainView.OptionSourceAsIs", "as separate shapes"

@@ -73,8 +73,7 @@ Private Sub Main( _
                 ByVal Cfg As Config _
             )
     
-    Dim RawShapes As ShapeRange
-    Set RawShapes = CreateShapeRange
+    Dim RawShapes As ShapeRange: Set RawShapes = CreateShapeRange
     
     If Cfg.OptionSourceWithinGroups Then
         RawShapes.AddRange _
@@ -84,12 +83,11 @@ Private Sub Main( _
     End If
     
     Dim ReadyShapes As ShapeRange
-    Dim InvalidShapes As ShapeRange
-    Set InvalidShapes = Common.SeparateInvalidForContour(RawShapes)
+    Dim InvalidShapes As ShapeRange: Set InvalidShapes = _
+        Common.SeparateInvalidForContour(RawShapes)
     Set ReadyShapes = RawShapes
     
-    Dim TempShapes As ShapeRange
-    Set TempShapes = CreateShapeRange
+    Dim TempShapes As ShapeRange: Set TempShapes = CreateShapeRange
 
     If Cfg.OptionTrace Then
         TempShapes.AddRange _
@@ -99,8 +97,8 @@ Private Sub Main( _
         ReadyShapes.AddRange TempShapes
     End If
     
-    Dim Contours As ShapeRange
-    Set Contours = CreateShapeRange
+    Dim Contours As ShapeRange: Set Contours = CreateShapeRange
+    Dim Contours2 As ShapeRange: Set Contours2 = CreateShapeRange
 
     Dim Shape As Shape
 
@@ -108,23 +106,71 @@ Private Sub Main( _
     Dim Contour As Shape
     For Each Shape In ReadyShapes
         ContourAndAddToRange _
-            Shape, Contours, Cfg.OptionMatchColor, Cfg
+            Shape, Contours, Contours2, Cfg.OptionMatchColor, Cfg
     Next Shape
     For Each Shape In InvalidShapes
         Set BaseShape = Common.TryMakeBaseShape(Shape)
         If Not BaseShape Is Nothing Then
             TempShapes.Add BaseShape
             ContourAndAddToRange _
-                BaseShape, Contours, False, Cfg
+                BaseShape, Contours, Contours2, False, Cfg
         End If
     Next Shape
     
     If Contours.Count = 0 Then Exit Sub
     
-    Dim OutlineColor As Color
-    Dim FillColor As Color
-    Set OutlineColor = CreateColor(Cfg.OutlineColor)
-    Set FillColor = CreateColor(Cfg.FillColor)
+    ProcessContours Contours, True, Cfg
+    If Contours2.Count > 0 Then ProcessContours Contours2, False, Cfg
+    
+    Dim AverageColor As Color
+    If Cfg.OptionSourceAsOne Then
+        If Cfg.OptionMatchColor Then
+            Set AverageColor = _
+                GetAverageColorFromShapes( _
+                    Shapes:=Contours, Fills:=True, Outlines:=False _
+                )
+        End If
+        Set Shape = Weld(Contours)
+        If Not AverageColor Is Nothing Then
+            Shape.Fill.ApplyUniformFill AverageColor
+        End If
+        NameAndOrderShape Shape, Shapes, Cfg
+        Set Contours = _
+            Common.CreateShapeRangeFromShape(Shape)
+        If Contours2.Count > 0 Then
+            Set Shape = Weld(Contours2)
+            Shape.Name = Cfg.Name
+            Shape.OrderBackOf Contours.FirstShape
+        End If
+    End If
+        
+    Dim ContourLayer As Layer
+    If Cfg.OptionResultAsGroup Then
+        If Contours.Count = 1 Then
+            Set Shape = Contours.FirstShape
+        Else
+            Set Shape = Contours.Group
+        End If
+        NameAndOrderShape Shape, Shapes, Cfg
+    ElseIf Cfg.OptionResultAsLayer Then
+        Set ContourLayer = _
+            Common.GetContourLayer(Cfg.Name, Cfg.OptionResultAbove)
+        Contours2.MoveToLayer ContourLayer
+        Contours.MoveToLayer ContourLayer
+    End If
+    
+    TempShapes.Delete
+
+End Sub
+
+Private Sub ProcessContours( _
+                ByVal Contours As ShapeRange, _
+                ByVal AssignFill As Boolean, _
+                ByVal Cfg As Config _
+            )
+    Dim OutlineColor As Color: Set OutlineColor = CreateColor(Cfg.OutlineColor)
+    Dim FillColor As Color: Set FillColor = CreateColor(Cfg.FillColor)
+    Dim Shape As Shape
     For Each Shape In Contours
         If Cfg.OptionMakeOutline Then
             Shape.Outline.SetProperties Cfg.OutlineWidth
@@ -132,7 +178,7 @@ Private Sub Main( _
         Else
             Shape.Outline.SetNoOutline
         End If
-        If Cfg.OptionMakeFill Then
+        If Cfg.OptionMakeFill And AssignFill Then
             If Cfg.OptionFillColor Then
                 Shape.Fill.ApplyUniformFill FillColor
             End If
@@ -143,41 +189,6 @@ Private Sub Main( _
             Shape.Name = Cfg.Name
         End If
     Next Shape
-    
-    Dim AverageColor As Color
-    If Cfg.OptionSourceAsOne Then
-        If Cfg.OptionMatchColor Then
-            Set AverageColor = _
-                LibCore.GetAverageColorFromShapes( _
-                    Shapes:=Contours, Fills:=True, Outlines:=False _
-                )
-        End If
-        Set Shape = LibCore.Weld(Contours)
-        If AverageColor Is Nothing Then
-            Shape.Fill.ApplyNoFill
-        Else
-            Shape.Fill.ApplyUniformFill AverageColor
-        End If
-        NameAndOrderShape Shape, Shapes, Cfg
-        Set Contours = _
-            Common.CreateShapeRangeFromShape(Shape)
-    End If
-        
-    If Cfg.OptionResultAsGroup Then
-        If Contours.Count = 1 Then
-            Set Shape = Contours.FirstShape
-        Else
-            Set Shape = Contours.Group
-        End If
-        NameAndOrderShape Shape, Shapes, Cfg
-    ElseIf Cfg.OptionResultAsLayer Then
-        LibCore.MoveToLayer _
-            Contours, _
-            Common.GetContourLayer(Cfg.Name, Cfg.OptionResultAbove)
-    End If
-    
-    TempShapes.Delete
-
 End Sub
 
 Private Function ExcludeAndTraceBitmaps( _
@@ -214,54 +225,75 @@ End Function
 Private Sub ContourAndAddToRange( _
                     ByVal Shape As Shape, _
                     ByVal ContoursRange As ShapeRange, _
+                    ByVal ContoursRange2 As ShapeRange, _
                     ByVal AssignFill As Boolean, _
                     ByVal Cfg As Config _
                  )
-        Dim FilletAmount As Double: FilletAmount = Abs(Cfg.Offset)
-                 
-        Dim TempShape As Shape
-        Dim NewContour As Shape
+        Dim TempShape As Shape, DeleteTempShape As Boolean, Reorder As Boolean
         
         If Cfg.OptionResultAsObjects Then
-            Set NewContour = _
-                Common.Contour(Shape, Cfg.Offset, Cfg.OptionRoundCorners)
-            If Cfg.OptionResultAbove Then
-                NewContour.OrderFrontOf Shape
-            Else
-                NewContour.OrderBackOf Shape
-            End If
+            Set TempShape = Shape
+            Reorder = True
         ElseIf Cfg.OptionSourceWithinGroups Then
             If Not Shape.ParentGroup Is Nothing Then
                 Set TempShape = Shape.Duplicate
                 'хак с LinkAsChildOf - вытаскиваем сорс для контура из групп
                 'чтобы работало undo
                 TempShape.TreeNode.LinkAsChildOf Shape.Layer.TreeNode
-                Set NewContour = _
-                    Common.Contour(TempShape, Cfg.Offset, Cfg.OptionRoundCorners)
-                TempShape.Delete
+                DeleteTempShape = True
             Else
-                Set NewContour = _
-                    Common.Contour(Shape, Cfg.Offset, Cfg.OptionRoundCorners)
+                Set TempShape = Shape
             End If
         Else
-            Set NewContour = _
-                Common.Contour(Shape, Cfg.Offset, Cfg.OptionRoundCorners)
+            Set TempShape = Shape
         End If
         
-        If Cfg.OptionRoundCorners Then
-            NewContour.ConvertToCurves
-            Common.Smoothen NewContour.Curve, FilletAmount
-        End If
-        
-        If AssignFill Then
-            Common.AverageFill Shape, NewContour
-        Else
-            NewContour.Fill.ApplyNoFill
-        End If
-        
+        Dim NewContour As Shape: Set NewContour = _
+            MakeContour(TempShape, Cfg.Offset, Cfg.OptionRoundCorners, AssignFill)
         ContoursRange.Add NewContour
         
+        If Reorder Then
+            If Cfg.OptionResultAbove Then
+                NewContour.OrderFrontOf Shape
+            Else
+                NewContour.OrderBackOf Shape
+            End If
+        End If
+        
+        Dim NewContour2 As Shape
+        If Cfg.OptionSecondaryContour Then
+            Set NewContour2 = _
+                MakeContour( _
+                    TempShape, Cfg.Offset2, Cfg.OptionRoundCorners2, False _
+                )
+            ContoursRange2.Add NewContour2
+            NewContour2.OrderBackOf NewContour
+        End If
+        
+        If DeleteTempShape Then TempShape.Delete
+        
 End Sub
+
+Private Function MakeContour( _
+                    ByVal Shape As Shape, _
+                    ByVal Offset As Double, _
+                    ByVal RoundCorners As Boolean, _
+                    ByVal AssignFill As Boolean _
+                 ) As Shape
+    Dim FilletAmount As Double: FilletAmount = Abs(Offset)
+    
+    Set MakeContour = _
+            Common.Contour(Shape, Offset, RoundCorners)
+    If RoundCorners Then
+        MakeContour.ConvertToCurves
+        Common.Smoothen MakeContour.Curve, FilletAmount
+    End If
+    If AssignFill Then
+        Common.AverageFill Shape, MakeContour
+    Else
+        MakeContour.Fill.ApplyNoFill
+    End If
+End Function
 
 Private Sub NameAndOrderShape( _
                 ByVal Shape As Shape, _
@@ -298,6 +330,10 @@ Private Function ShowViewAndGetResult(ByVal Cfg As Config) As Boolean
         .OptionTrace = Cfg.OptionTrace
         .OptionRoundCorners = Cfg.OptionRoundCorners
         
+        .OptionSecondaryContour = Cfg.OptionSecondaryContour
+        .TextBoxOffset2 = Cfg.Offset2
+        .OptionRoundCorners2 = Cfg.OptionRoundCorners2
+        
         .OptionSourceAsOne = Cfg.OptionSourceAsOne
         .OptionSourceAsIs = Cfg.OptionSourceAsIs
         .OptionSourceWithinGroups = Cfg.OptionSourceWithinGroups
@@ -323,6 +359,10 @@ Private Function ShowViewAndGetResult(ByVal Cfg As Config) As Boolean
         Cfg.FillColor = .FillColor.ToString
         Cfg.OptionTrace = .OptionTrace
         Cfg.OptionRoundCorners = .OptionRoundCorners
+        
+        Cfg.OptionSecondaryContour = .OptionSecondaryContour
+        Cfg.Offset2 = .OffsetHandler2
+        Cfg.OptionRoundCorners2 = .OptionRoundCorners2
         
         Cfg.OptionSourceAsOne = .OptionSourceAsOne
         Cfg.OptionSourceAsIs = .OptionSourceAsIs

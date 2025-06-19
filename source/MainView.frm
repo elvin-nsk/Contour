@@ -1,6 +1,6 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} MainView 
-   ClientHeight    =   6150
+   ClientHeight    =   6360
    ClientLeft      =   45
    ClientTop       =   390
    ClientWidth     =   6495
@@ -23,13 +23,13 @@ Public OutlineColor As Color
 Public FillColor As Color
 
 Public OffsetHandler As TextBoxHandler
+Public OffsetHandler2 As TextBoxHandler
 Public OutlineWidthHandler As TextBoxHandler
 Public NameHandler As TextBoxHandler
 
 '===============================================================================
 
 Private Sub UserForm_Initialize()
-    Caption = LocalizedStrings("MainView.Caption")
     Caption = LocalizedStrings("MainView.Caption") & " v" & APP_VERSION
     Logo.ControlTipText = APP_URL
     Localize
@@ -38,6 +38,8 @@ Private Sub UserForm_Initialize()
     Set FillColor = CreateColor
     Set OffsetHandler = _
         TextBoxHandler.SetDouble(TextBoxOffset, -10000#, 10000#)
+    Set OffsetHandler2 = _
+        TextBoxHandler.SetDouble(TextBoxOffset2, -10000#, 10000#)
     Set OutlineWidthHandler = _
         TextBoxHandler.SetDouble(TextBoxOutlineWidth, 0.001)
     Set NameHandler = _
@@ -112,6 +114,11 @@ Private Sub Localize()
     OptionMatchColor.Caption = LocalizedStrings("MainView.OptionMatchColor")
     OptionTrace.Caption = LocalizedStrings("MainView.OptionTrace")
     OptionRoundCorners.Caption = LocalizedStrings("MainView.OptionRoundCorners")
+    
+    OptionSecondaryContour.Caption = LocalizedStrings("MainView.OptionSecondaryContour")
+    LabelOffset2.Caption = LocalizedStrings("MainView.LabelOffset2")
+    LabelOffsetUnits2.Caption = LocalizedStrings("MainView.LabelOffsetUnits2")
+    OptionRoundCorners2.Caption = LocalizedStrings("MainView.OptionRoundCorners2")
     
     FrameSource.Caption = LocalizedStrings("MainView.FrameSource")
     OptionSourceAsOne.Caption = LocalizedStrings("MainView.OptionSourceAsOne")
