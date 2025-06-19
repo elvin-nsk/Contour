@@ -35,14 +35,14 @@ Attribute View.VB_VarHelpID = -1
 
 '===============================================================================
 
-'прогресс в виде десятичной дроби
+'РїСЂРѕРіСЂРµСЃСЃ РІ РІРёРґРµ РґРµСЃСЏС‚РёС‡РЅРѕР№ РґСЂРѕР±Рё
 Public Function CreateDecimal() As IProgressBar
     With New ProgressBar
         Set CreateDecimal = .Init(pbDecimal, 1, 0.1)
     End With
 End Function
 
-'прогресс в виде текущей итерации из максимальных
+'РїСЂРѕРіСЂРµСЃСЃ РІ РІРёРґРµ С‚РµРєСѓС‰РµР№ РёС‚РµСЂР°С†РёРё РёР· РјР°РєСЃРёРјР°Р»СЊРЅС‹С…
 Public Function CreateNumeric( _
                     ByVal Max As Long, _
                     Optional ByVal Step As Long = 1 _
@@ -52,7 +52,7 @@ Public Function CreateNumeric( _
     End With
 End Function
 
-'прогресс в виде процентов
+'РїСЂРѕРіСЂРµСЃСЃ РІ РІРёРґРµ РїСЂРѕС†РµРЅС‚РѕРІ
 Public Function CreatePercent() As IProgressBar
     With New ProgressBar
         Set CreatePercent = .Init(pbPercent, 100, 1)

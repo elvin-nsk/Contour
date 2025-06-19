@@ -14,8 +14,9 @@ Option Explicit
 
 '===============================================================================
 
-Private Const ReduceBitmapSize As Long = 1000
-Private Const MmInInch = 25.4
+Private Const TRACEABLE_BITMAP_SIZE As Long = 1000
+Private Const MM_PER_INCH = 25.4
+Private Const MIN_OFFSET As Double = 0.025
 
 '===============================================================================
 
@@ -27,15 +28,20 @@ Public Function TraceBitmap( _
     Dim ShapeToProcess As Shape
     Dim DeleteShape As Boolean
                 
-    If BitmapShape.Bitmap.SizeWidth > ReduceBitmapSize _
-    Or BitmapShape.Bitmap.SizeHeight > ReduceBitmapSize Then
+    If BitmapShape.Bitmap.SizeWidth > TRACEABLE_BITMAP_SIZE _
+    Or BitmapShape.Bitmap.SizeHeight > TRACEABLE_BITMAP_SIZE Then
         Set ShapeToProcess = BitmapShape.Duplicate
         DeleteShape = True
         Set ShapeToProcess = ShapeToProcess.ConvertToBitmapEx( _
             BitmapShape.Bitmap.Mode, , _
             BitmapShape.Bitmap.Transparent, _
-            ReduceBitmapSize / (LibCore.GreaterDim(BitmapShape) / MmInInch) _
+            TRACEABLE_BITMAP_SIZE / (GreaterDim(BitmapShape) / MM_PER_INCH) _
         )
+        'тут мы слегка раздуваем битмап, чтобы нормально трассировался
+        'если будет впритык к краю - будут куски фона по углам
+        With ShapeToProcess.Bitmap.CropEnvelope
+            .CopyAssign .Contour(AverageDim(BitmapShape) / 10, cdrContourOutside)
+        End With
     Else
         Set ShapeToProcess = BitmapShape
     End If
@@ -122,9 +128,9 @@ Public Function Contour( _
                     ByVal Offset As Double, _
                     ByVal RoundCorners As Boolean _
                  ) As Shape
-                 
-    Dim ShapeToProcess As Shape
+    
     Dim DeleteShape As Boolean
+    If Abs(Offset) < MIN_OFFSET Then Offset = 0
     
     Dim Direction As cdrContourDirection
     If Offset > 0 Then
@@ -132,7 +138,7 @@ Public Function Contour( _
     ElseIf Offset < 0 Then
         Direction = cdrContourInside
     ElseIf Offset = 0 Then
-        Set Contour = LibCore.CreateBoundary(Shape)
+        Set Contour = CreateBoundary(Shape)
         Exit Function
     End If
     
@@ -146,18 +152,38 @@ Public Function Contour( _
         Corner = cdrContourCornerMiteredOffsetBevel
     End If
     
+    If Shape.Type = cdrGroupShape Then
+        Set Shape = CreateBoundary(Shape)
+        DeleteShape = True
+    End If
+    
     Set Contour = _
         Shape.CreateContour( _
-                Direction:=Direction, _
-                  Offset:=VBA.Abs(Offset), _
-                  Steps:=1, _
-                  EndCapType:=Cap, _
-                  CornerType:=Corner _
-              ).Separate.FirstShape
+            Direction:=Direction, _
+            Offset:=Abs(Offset), _
+            Steps:=1, _
+            EndCapType:=Cap, _
+            CornerType:=Corner _
+        ).Separate.FirstShape
               
-    If DeleteShape Then ShapeToProcess.Delete
+    If DeleteShape Then Shape.Delete
         
 End Function
+
+Public Sub Smoothen( _
+                ByVal Curve As Curve, _
+                Optional ByVal FilletAmount As Double = 1 _
+            )
+    If FilletAmount = 0 Then FilletAmount = Curve.Length / 100
+    With Curve.Nodes.All
+        .Smoothen 1
+        .AutoReduce 1
+        .Fillet FilletAmount
+        .AutoReduce 1
+        .Fillet FilletAmount / 2
+        .AutoReduce 1
+    End With
+End Sub
 
 Public Sub AverageFill( _
                ByVal SourceShape As Shape, _
@@ -195,14 +221,9 @@ Public Function CreateShapeRangeFromShape(ByVal Shape As Shape) As ShapeRange
 End Function
 
 Private Function Trace(ByVal BitmapShape As Shape) As Shape
-    With BitmapShape.Bitmap.Trace(cdrTraceLowQualityImage)
+    With BitmapShape.Bitmap.Trace(cdrTraceLineArt)
         .BackgroundRemovalMode = cdrTraceBackgroundAutomatic
-        '.CornerSmoothness = 50
-        .DetailLevelPercent = 50
-        '.SetColorCount 8
-        .MergeAdjacentObjects = True
         .RemoveBackground = True
-        .RemoveEntireBackColor = False
         Set Trace = .Finish.Group
     End With
 End Function

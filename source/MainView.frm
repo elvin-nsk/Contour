@@ -26,12 +26,11 @@ Public OffsetHandler As TextBoxHandler
 Public OutlineWidthHandler As TextBoxHandler
 Public NameHandler As TextBoxHandler
 
-Private Const MIN_OFFSET As Double = 0.025
-
 '===============================================================================
 
 Private Sub UserForm_Initialize()
     Caption = LocalizedStrings("MainView.Caption")
+    Caption = LocalizedStrings("MainView.Caption") & " v" & APP_VERSION
     Logo.ControlTipText = APP_URL
     Localize
     
@@ -73,30 +72,20 @@ Private Sub OptionResultBelow_Click()
     OptionResultAbove = Not OptionResultBelow
 End Sub
 
-Private Sub TextBoxOffset_AfterUpdate()
-    If TextBoxOffset.Value < 0.025 And TextBoxOffset.Value > -0.025 Then
-        If TextBoxOffset.Value < 0 Then
-            TextBoxOffset.Value = VBA.CStr(-MIN_OFFSET)
-        Else
-            TextBoxOffset.Value = VBA.CStr(MIN_OFFSET)
-        End If
-    End If
-End Sub
-
 Private Sub TextBoxOffset_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
-    If KeyCode = 13 Then Form问
+    If KeyCode = 13 Then Form袨袣
 End Sub
 
 Private Sub TextBoxOutlineWidth_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
-    If KeyCode = 13 Then Form问
+    If KeyCode = 13 Then Form袨袣
 End Sub
 
 Private Sub TextBoxName_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift As Integer)
-    If KeyCode = 13 Then Form问
+    If KeyCode = 13 Then Form袨袣
 End Sub
 
 Private Sub ButtonOk_Click()
-    Form问
+    Form袨袣
 End Sub
 
 Private Sub ButtonCancel_Click()
@@ -162,7 +151,7 @@ Private Function PickColor( _
     PickColor = True
 End Function
 
-Private Sub Form问()
+Private Sub Form袨袣()
     Me.Hide
     IsOk = True
 End Sub
@@ -174,9 +163,9 @@ End Sub
 
 '===============================================================================
 
-Private Sub UserForm_QueryClose(補ncel As Integer, CloseMode As Integer)
+Private Sub UserForm_QueryClose(小ancel As Integer, CloseMode As Integer)
     If CloseMode = VbQueryClose.vbFormControlMenu Then
-        補ncel = True
+        小ancel = True
         FormCancel
     End If
 End Sub

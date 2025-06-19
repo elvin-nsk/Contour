@@ -54,9 +54,9 @@ Private LastDoneWidth As Long
 
 Private Sub UserForm_Initialize()
     CancelDisable
-    Me.Caption = "Подождите..."
-    Me.btnCancel.Caption = "Отмена"
-    NumericMiddleText = "из"
+    Me.Caption = "РџРѕРґРѕР¶РґРёС‚Рµ..."
+    Me.btnCancel.Caption = "РћС‚РјРµРЅР°"
+    NumericMiddleText = "РёР·"
     With Me.lblDone ' set the "progress bar" to it's initial length
         .Top = Me.lblRemain.Top + 1
         .Left = Me.lblRemain.Left + 1

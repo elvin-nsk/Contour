@@ -1,20 +1,25 @@
 Attribute VB_Name = "Contour"
 '===============================================================================
-'   Макрос          : Contour
-'   Версия          : 2022.02.18
-'   Сайты           : https://vk.com/elvin_macro/Contour
+'   РњР°РєСЂРѕСЃ          : Contour
+'   Р’РµСЂСЃРёСЏ          : 2025.06.19
+'   РЎР°Р№С‚С‹           : https://vk.com/elvin_macro/Contour
 '                     https://github.com/elvin-nsk
-'   Автор           : elvin-nsk (me@elvin.nsk.ru)
+'   РђРІС‚РѕСЂ           : elvin-nsk (me@elvin.nsk.ru)
 '===============================================================================
 
 Option Explicit
 
 Public Const RELEASE As Boolean = True
 
+'===============================================================================
+' # Manifest
+
 Public Const APP_NAME As String = "Contour"
 Public Const APP_URL As String = "https://vk.com/tverlogo"
+Public Const APP_VERSION As String = "2025.06.19"
 
 '===============================================================================
+' # Entry points
 
 Public LocalizedStrings As IStringLocalizer
 
@@ -58,7 +63,7 @@ Finally:
     Exit Sub
 
 Catch:
-    MsgBox "Ошибка: " & Err.Description, vbCritical
+    MsgBox "РћС€РёР±РєР°: " & Err.Description, vbCritical
     Resume Finally
 
 End Sub
@@ -212,12 +217,11 @@ Private Sub ContourAndAddToRange( _
                     ByVal AssignFill As Boolean, _
                     ByVal Cfg As Config _
                  )
+        Dim FilletAmount As Double: FilletAmount = Abs(Cfg.Offset)
                  
         Dim TempShape As Shape
         Dim NewContour As Shape
         
-        'хак с LinkAsChildOf - вытаскиваем сорс для контура из групп
-        'чтобы работало undo
         If Cfg.OptionResultAsObjects Then
             Set NewContour = _
                 Common.Contour(Shape, Cfg.Offset, Cfg.OptionRoundCorners)
@@ -229,6 +233,8 @@ Private Sub ContourAndAddToRange( _
         ElseIf Cfg.OptionSourceWithinGroups Then
             If Not Shape.ParentGroup Is Nothing Then
                 Set TempShape = Shape.Duplicate
+                'С…Р°Рє СЃ LinkAsChildOf - РІС‹С‚Р°СЃРєРёРІР°РµРј СЃРѕСЂСЃ РґР»СЏ РєРѕРЅС‚СѓСЂР° РёР· РіСЂСѓРїРї
+                'С‡С‚РѕР±С‹ СЂР°Р±РѕС‚Р°Р»Рѕ undo
                 TempShape.TreeNode.LinkAsChildOf Shape.Layer.TreeNode
                 Set NewContour = _
                     Common.Contour(TempShape, Cfg.Offset, Cfg.OptionRoundCorners)
@@ -240,6 +246,11 @@ Private Sub ContourAndAddToRange( _
         Else
             Set NewContour = _
                 Common.Contour(Shape, Cfg.Offset, Cfg.OptionRoundCorners)
+        End If
+        
+        If Cfg.OptionRoundCorners Then
+            NewContour.ConvertToCurves
+            Common.Smoothen NewContour.Curve, FilletAmount
         End If
         
         If AssignFill Then
@@ -337,7 +348,7 @@ Private Sub LocalizedStringsInit()
 End Sub
 
 '===============================================================================
-' тесты
+' С‚РµСЃС‚С‹
 '===============================================================================
 
 Private Sub testTraceBitmaps()

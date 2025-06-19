@@ -21,43 +21,43 @@ Private Sub Class_Initialize()
     Set Strings = New Scripting.Dictionary
     With Strings
         
-        .Add "Common.ErrNoDocument", "Нет активного документа"
-        .Add "Common.ErrNoSelection", "Выделите объекты"
+        .Add "Common.ErrNoDocument", "РќРµС‚ Р°РєС‚РёРІРЅРѕРіРѕ РґРѕРєСѓРјРµРЅС‚Р°"
+        .Add "Common.ErrNoSelection", "Р’С‹РґРµР»РёС‚Рµ РѕР±СЉРµРєС‚С‹"
         .Add "Common.ErrDisabledLayer", _
-            "Активный слой заблокирован или невидим"
-        .Add "Common.ErrConfig", "Ошибка в настройках"
+            "РђРєС‚РёРІРЅС‹Р№ СЃР»РѕР№ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ РёР»Рё РЅРµРІРёРґРёРј"
+        .Add "Common.ErrConfig", "РћС€РёР±РєР° РІ РЅР°СЃС‚СЂРѕР№РєР°С…"
         
-        .Add "ProgressBar.TraceCaption", "Трассировка..."
-        .Add "ProgressBar.TraceMiddle", "из"
+        .Add "ProgressBar.TraceCaption", "РўСЂР°СЃСЃРёСЂРѕРІРєР°..."
+        .Add "ProgressBar.TraceMiddle", "РёР·"
         
-        .Add "MainView.Caption", "Тверской, мать его, контур"
-        .Add "MainView.FrameContour", "Контур"
-        .Add "MainView.LabelOffset", "Отступ"
-        .Add "MainView.LabelOffsetUnits", "мм"
-        .Add "MainView.OptionMakeOutline", "Абрис"
-        .Add "MainView.LabelOutlineWidth", "Толщина абриса"
-        .Add "MainView.LabelOutlineUnits", "мм"
-        .Add "MainView.OptionMakeFill", "Заливка"
-        .Add "MainView.OptionMatchColor", "Подобрать цвет"
-        .Add "MainView.OptionTrace", "Трассировать растр"
-        .Add "MainView.OptionRoundCorners", "Скруглять углы"
+        .Add "MainView.Caption", "РўРІРµСЂСЃРєРѕР№, РјР°С‚СЊ РµРіРѕ, РєРѕРЅС‚СѓСЂ"
+        .Add "MainView.FrameContour", "РљРѕРЅС‚СѓСЂ"
+        .Add "MainView.LabelOffset", "РћС‚СЃС‚СѓРї"
+        .Add "MainView.LabelOffsetUnits", "РјРј"
+        .Add "MainView.OptionMakeOutline", "РђР±СЂРёСЃ"
+        .Add "MainView.LabelOutlineWidth", "РўРѕР»С‰РёРЅР° Р°Р±СЂРёСЃР°"
+        .Add "MainView.LabelOutlineUnits", "РјРј"
+        .Add "MainView.OptionMakeFill", "Р—Р°Р»РёРІРєР°"
+        .Add "MainView.OptionMatchColor", "РџРѕРґРѕР±СЂР°С‚СЊ С†РІРµС‚"
+        .Add "MainView.OptionTrace", "РўСЂР°СЃСЃРёСЂРѕРІР°С‚СЊ СЂР°СЃС‚СЂ"
+        .Add "MainView.OptionRoundCorners", "РЎРіР»Р°Р¶РёРІР°С‚СЊ"
         
-        .Add "MainView.FrameSource", "Обрабатывать выделенное"
-        .Add "MainView.OptionSourceAsOne", "как единый объект"
-        .Add "MainView.OptionSourceAsIs", "каждый объект отдельно"
+        .Add "MainView.FrameSource", "РћР±СЂР°Р±Р°С‚С‹РІР°С‚СЊ РІС‹РґРµР»РµРЅРЅРѕРµ"
+        .Add "MainView.OptionSourceAsOne", "РєР°Рє РµРґРёРЅС‹Р№ РѕР±СЉРµРєС‚"
+        .Add "MainView.OptionSourceAsIs", "РєР°Р¶РґС‹Р№ РѕР±СЉРµРєС‚ РѕС‚РґРµР»СЊРЅРѕ"
         .Add "MainView.OptionSourceWithinGroups", _
-            "каждый объект отдельно, сгруппированные считать отдельными объектами"
+            "РєР°Р¶РґС‹Р№ РѕР±СЉРµРєС‚ РѕС‚РґРµР»СЊРЅРѕ, СЃРіСЂСѓРїРїРёСЂРѕРІР°РЅРЅС‹Рµ СЃС‡РёС‚Р°С‚СЊ РѕС‚РґРµР»СЊРЅС‹РјРё РѕР±СЉРµРєС‚Р°РјРё"
         
-        .Add "MainView.FrameResult", "Результат"
-        .Add "MainView.OptionResultAbove", "над"
-        .Add "MainView.OptionResultBelow", "под"
-        .Add "MainView.OptionResultAsObjects", "каждым объектом"
-        .Add "MainView.OptionResultAsGroup", "объектами отдельной группой"
-        .Add "MainView.OptionResultAsLayer", "текущим слоем на отдельном слое"
-        .Add "MainView.LabelName", "Имя"
-        .Add "MainView.TextBoxName.Default", "контур"
+        .Add "MainView.FrameResult", "Р РµР·СѓР»СЊС‚Р°С‚"
+        .Add "MainView.OptionResultAbove", "РЅР°Рґ"
+        .Add "MainView.OptionResultBelow", "РїРѕРґ"
+        .Add "MainView.OptionResultAsObjects", "РєР°Р¶РґС‹Рј РѕР±СЉРµРєС‚РѕРј"
+        .Add "MainView.OptionResultAsGroup", "РѕР±СЉРµРєС‚Р°РјРё РѕС‚РґРµР»СЊРЅРѕР№ РіСЂСѓРїРїРѕР№"
+        .Add "MainView.OptionResultAsLayer", "С‚РµРєСѓС‰РёРј СЃР»РѕРµРј РЅР° РѕС‚РґРµР»СЊРЅРѕРј СЃР»РѕРµ"
+        .Add "MainView.LabelName", "РРјСЏ"
+        .Add "MainView.TextBoxName.Default", "РєРѕРЅС‚СѓСЂ"
         
-        .Add "MainView.ButtonOk", "Пуск"
+        .Add "MainView.ButtonOk", "РџСѓСЃРє"
 
     End With
 End Sub
